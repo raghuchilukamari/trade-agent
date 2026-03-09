@@ -1,0 +1,70 @@
+version: "3.9"
+
+services:
+  # ── Trading Agent API ──────────────────────────────────────────────
+  trading-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trading-agent
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    volumes:
+      - /media/SHARED/trade-data:/media/SHARED/trade-data
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ── PostgreSQL + PGVector ──────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: trading-agent-db
+    environment:
+      POSTGRES_USER: trading_agent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: trading_agent
+    ports:
+      - "5433:5432"  # Offset to avoid conflicts
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trading_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── pgAdmin (optional, for DB inspection) ──────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: trading-agent-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@trading.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    profiles:
+      - tools  # Only starts with: docker compose --profile tools up
+
+volumes:
+  pgdata:
+
+networks:
+  default:
+    name: trading-agent-network
