@@ -114,6 +114,63 @@ CREATE TABLE IF NOT EXISTS analysis_embeddings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_embed_date ON analysis_embeddings(date);
+
+-- ── Dashboard Schema ────────────────────────────────────────────────────────
+CREATE SCHEMA IF NOT EXISTS dashboard;
+
+-- Skill outputs (SEC filings, equity research, market events)
+CREATE TABLE IF NOT EXISTS dashboard.skill_outputs (
+    id            BIGSERIAL PRIMARY KEY,
+    skill_name    VARCHAR(64) NOT NULL,
+    run_date      DATE NOT NULL,
+    symbol        VARCHAR(16),
+    output_json   JSONB NOT NULL,
+    created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_skill_unique
+    ON dashboard.skill_outputs(skill_name, run_date, COALESCE(symbol, '__GLOBAL__'));
+
+-- Minervini screener longitudinal tracking
+CREATE TABLE IF NOT EXISTS dashboard.minervini_tracker (
+    id             BIGSERIAL PRIMARY KEY,
+    scan_date      DATE NOT NULL UNIQUE,
+    total_screened INT,
+    total_passing  INT,
+    near_miss      INT,
+    passers        TEXT[],
+    new_additions  TEXT[],
+    new_removals   TEXT[],
+    results_json   JSONB,
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Sector flow time-series
+CREATE TABLE IF NOT EXISTS dashboard.sector_flow_history (
+    id           BIGSERIAL PRIMARY KEY,
+    date         DATE NOT NULL,
+    sector       VARCHAR(64) NOT NULL,
+    bull_premium NUMERIC(18,2),
+    bear_premium NUMERIC(18,2),
+    net_premium  NUMERIC(18,2),
+    signal       VARCHAR(32),
+    created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sector_date
+    ON dashboard.sector_flow_history(date, sector);
+
+-- Stock intelligence alerts (change detection)
+CREATE TABLE IF NOT EXISTS dashboard.stock_alerts (
+    id           BIGSERIAL PRIMARY KEY,
+    alert_date   DATE NOT NULL,
+    symbol       VARCHAR(16) NOT NULL,
+    alert_type   VARCHAR(32) NOT NULL,
+    severity     VARCHAR(16) NOT NULL,
+    headline     TEXT NOT NULL,
+    detail_json  JSONB,
+    created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_alerts_date ON dashboard.stock_alerts(alert_date);
+CREATE INDEX IF NOT EXISTS idx_alerts_symbol ON dashboard.stock_alerts(symbol);
 """
 
 
@@ -152,12 +209,17 @@ class DatabaseManager:
             max_size=settings.postgres_pool_size,
         )
 
-        # Run schema init
-        async with self._engine.begin() as conn:
-            for statement in INIT_SQL.split(";"):
-                stmt = statement.strip()
-                if stmt:
+        # Run schema init — each statement in its own transaction
+        # so a failure (e.g., pgvector extension) doesn't cascade
+        for statement in INIT_SQL.split(";"):
+            stmt = statement.strip()
+            if not stmt:
+                continue
+            try:
+                async with self._engine.begin() as conn:
                     await conn.execute(text(stmt))
+            except Exception as e:
+                logger.warning("schema_init_skip", statement=stmt[:60], error=str(e)[:80])
 
         logger.info("database_initialized")
 
@@ -196,7 +258,8 @@ class DatabaseManager:
                 """,
                 [
                     (
-                        e["date"], e["source"], e["symbol"], e.get("strike"),
+                        date.fromisoformat(e["date"]) if isinstance(e["date"], str) else e["date"],
+                        e["source"], e["symbol"], e.get("strike"),
                         e.get("expiration"), e.get("call_put"), e.get("premium_raw"),
                         e.get("premium_usd"), e.get("vol_oi_ratio"), e.get("alert_type"),
                         e.get("description"), e.get("oi"),
@@ -220,7 +283,8 @@ class DatabaseManager:
                 """,
                 [
                     (
-                        e["date"], e.get("summary"), e.get("sentiment_score"),
+                        date.fromisoformat(e["date"]) if isinstance(e["date"], str) else e["date"],
+                        e.get("summary"), e.get("sentiment_score"),
                         e.get("tickers", []), e.get("geopolitical_entities", []),
                         e.get("sectors", []), e.get("commodities", []),
                     )
@@ -302,6 +366,167 @@ class DatabaseManager:
             rows = await conn.fetch(
                 "SELECT * FROM flow_tracker ORDER BY date DESC LIMIT $1",
                 days,
+            )
+            return [dict(r) for r in rows]
+
+    # ── Dashboard Schema Methods ──────────────────────────────────────────
+
+    async def save_skill_output(
+        self, skill_name: str, run_date: date, output_json: dict, symbol: str | None = None
+    ) -> None:
+        """Upsert a skill output row."""
+        import json as _json
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO dashboard.skill_outputs (skill_name, run_date, symbol, output_json)
+                VALUES ($1, $2, $3, $4::jsonb)
+                ON CONFLICT (skill_name, run_date, COALESCE(symbol, '__GLOBAL__'))
+                DO UPDATE SET output_json = EXCLUDED.output_json, created_at = NOW()
+                """,
+                skill_name, run_date, symbol, _json.dumps(output_json),
+            )
+
+    async def get_latest_skill_output(
+        self, skill_name: str, symbol: str | None = None, limit: int = 1
+    ) -> list[dict]:
+        """Get the most recent skill output(s)."""
+        async with self._pool.acquire() as conn:
+            if symbol:
+                rows = await conn.fetch(
+                    """
+                    SELECT * FROM dashboard.skill_outputs
+                    WHERE skill_name = $1 AND symbol = $2
+                    ORDER BY run_date DESC LIMIT $3
+                    """,
+                    skill_name, symbol, limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    """
+                    SELECT * FROM dashboard.skill_outputs
+                    WHERE skill_name = $1 AND symbol IS NULL
+                    ORDER BY run_date DESC LIMIT $2
+                    """,
+                    skill_name, limit,
+                )
+            return [dict(r) for r in rows]
+
+    async def save_minervini_scan(self, entry: dict) -> None:
+        """Upsert a Minervini scan result."""
+        import json as _json
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO dashboard.minervini_tracker
+                    (scan_date, total_screened, total_passing, near_miss,
+                     passers, new_additions, new_removals, results_json)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+                ON CONFLICT (scan_date) DO UPDATE SET
+                    total_screened = EXCLUDED.total_screened,
+                    total_passing = EXCLUDED.total_passing,
+                    near_miss = EXCLUDED.near_miss,
+                    passers = EXCLUDED.passers,
+                    new_additions = EXCLUDED.new_additions,
+                    new_removals = EXCLUDED.new_removals,
+                    results_json = EXCLUDED.results_json
+                """,
+                entry["scan_date"], entry.get("total_screened", 0),
+                entry.get("total_passing", 0), entry.get("near_miss", 0),
+                entry.get("passers", []), entry.get("new_additions", []),
+                entry.get("new_removals", []),
+                _json.dumps(entry.get("results_json", {})),
+            )
+
+    async def get_minervini_history(self, days: int = 30) -> list[dict]:
+        """Get recent Minervini scan history."""
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT * FROM dashboard.minervini_tracker
+                ORDER BY scan_date DESC LIMIT $1
+                """,
+                days,
+            )
+            return [dict(r) for r in rows]
+
+    async def save_sector_flow(self, rows: list[dict]) -> None:
+        """Upsert sector flow history rows."""
+        if not rows:
+            return
+        async with self._pool.acquire() as conn:
+            await conn.executemany(
+                """
+                INSERT INTO dashboard.sector_flow_history
+                    (date, sector, bull_premium, bear_premium, net_premium, signal)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                ON CONFLICT (date, sector) DO UPDATE SET
+                    bull_premium = EXCLUDED.bull_premium,
+                    bear_premium = EXCLUDED.bear_premium,
+                    net_premium = EXCLUDED.net_premium,
+                    signal = EXCLUDED.signal
+                """,
+                [
+                    (r["date"], r["sector"], r["bull_premium"],
+                     r["bear_premium"], r["net_premium"], r["signal"])
+                    for r in rows
+                ],
+            )
+
+    async def get_sector_flow_history(self, days: int = 30) -> list[dict]:
+        """Get recent sector flow history."""
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT * FROM dashboard.sector_flow_history
+                ORDER BY date DESC, bull_premium + bear_premium DESC
+                LIMIT $1
+                """,
+                days * 20,  # ~20 sectors per day
+            )
+            return [dict(r) for r in rows]
+
+    async def save_stock_alert(self, alert: dict) -> None:
+        """Insert a stock alert."""
+        import json as _json
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO dashboard.stock_alerts
+                    (alert_date, symbol, alert_type, severity, headline, detail_json)
+                VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+                """,
+                alert["alert_date"], alert["symbol"], alert["alert_type"],
+                alert["severity"], alert["headline"],
+                _json.dumps(alert.get("detail_json", {})),
+            )
+
+    async def get_stock_alerts(
+        self, target_date: date | None = None, symbol: str | None = None, limit: int = 50
+    ) -> list[dict]:
+        """Get stock alerts with optional filters."""
+        async with self._pool.acquire() as conn:
+            conditions = []
+            params = []
+            idx = 1
+            if target_date:
+                conditions.append(f"alert_date = ${idx}")
+                params.append(target_date)
+                idx += 1
+            if symbol:
+                conditions.append(f"symbol = ${idx}")
+                params.append(symbol)
+                idx += 1
+            where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            params.append(limit)
+            rows = await conn.fetch(
+                f"""
+                SELECT * FROM dashboard.stock_alerts
+                {where}
+                ORDER BY alert_date DESC, severity ASC
+                LIMIT ${idx}
+                """,
+                *params,
             )
             return [dict(r) for r in rows]
 

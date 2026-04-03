@@ -39,8 +39,13 @@ def normalize_symbol(symbol: str) -> str:
 # ── CSV Loaders ──────────────────────────────────────────────────────────────
 
 
-def _load_pipe_csv(filepath: Path, target_date: str | None = None) -> list[dict[str, Any]]:
-    """Load a pipe-delimited CSV and optionally filter by date."""
+def _load_pipe_csv(
+    filepath: Path,
+    target_date: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, Any]]:
+    """Load a pipe-delimited CSV and optionally filter by date or date range."""
     if not filepath.exists():
         logger.warning("file_not_found", path=str(filepath))
         return []
@@ -49,17 +54,22 @@ def _load_pipe_csv(filepath: Path, target_date: str | None = None) -> list[dict[
     with open(filepath, "r", encoding="utf-8", errors="replace") as f:
         reader = csv.DictReader(f, delimiter="|")
         for row in reader:
-            if target_date and row.get("Date", "").strip() != target_date:
+            d = row.get("Date", "").strip()
+            if target_date and d != target_date:
+                continue
+            if start_date and d < start_date:
+                continue
+            if end_date and d > end_date:
                 continue
             rows.append({k.strip(): v.strip() if isinstance(v, str) else v for k, v in row.items()})
 
-    logger.info("loaded_csv", file=filepath.name, rows=len(rows), date_filter=target_date)
+    logger.info("loaded_csv", file=filepath.name, rows=len(rows), date_filter=target_date or f"{start_date}..{end_date}")
     return rows
 
 
-def load_golden_sweeps(data_dir: Path, target_date: str) -> list[dict[str, Any]]:
+def load_golden_sweeps(data_dir: Path, target_date: str = None, *, start_date: str = None, end_date: str = None) -> list[dict[str, Any]]:
     """Load golden-sweeps.csv and normalize."""
-    rows = _load_pipe_csv(data_dir / "golden-sweeps.csv", target_date)
+    rows = _load_pipe_csv(data_dir / "golden-sweeps.csv", target_date, start_date, end_date)
     entries = []
     for r in rows:
         entries.append({
@@ -79,9 +89,9 @@ def load_golden_sweeps(data_dir: Path, target_date: str) -> list[dict[str, Any]]
     return entries
 
 
-def load_sweeps(data_dir: Path, target_date: str) -> list[dict[str, Any]]:
+def load_sweeps(data_dir: Path, target_date: str = None, *, start_date: str = None, end_date: str = None) -> list[dict[str, Any]]:
     """Load sweeps.csv and normalize."""
-    rows = _load_pipe_csv(data_dir / "sweeps.csv", target_date)
+    rows = _load_pipe_csv(data_dir / "sweeps.csv", target_date, start_date, end_date)
     entries = []
     for r in rows:
         entries.append({
@@ -101,13 +111,14 @@ def load_sweeps(data_dir: Path, target_date: str) -> list[dict[str, Any]]:
     return entries
 
 
-def load_sexy_flow(data_dir: Path, target_date: str) -> list[dict[str, Any]]:
+def load_sexy_flow(data_dir: Path, target_date: str = None, *, start_date: str = None, end_date: str = None) -> list[dict[str, Any]]:
     """Load sexy-flow.csv and normalize."""
-    rows = _load_pipe_csv(data_dir / "sexy-flow.csv", target_date)
+    rows = _load_pipe_csv(data_dir / "sexy-flow.csv", target_date, start_date, end_date)
     entries = []
     for r in rows:
+        bid_pct, ask_pct = _parse_bid_ask(r.get("Bid_Ask_Pct", ""))
         entries.append({
-            "date": r.get("Date", target_date),
+            "date": r.get("Date", target_date or ""),
             "source": "sexy_flow",
             "symbol": normalize_symbol(r.get("Symbol", "")),
             "strike": _parse_float(r.get("Strike")),
@@ -119,13 +130,17 @@ def load_sexy_flow(data_dir: Path, target_date: str) -> list[dict[str, Any]]:
             "alert_type": r.get("Alert_Type", ""),
             "description": "",
             "oi": None,
+            "bid_pct": bid_pct,
+            "ask_pct": ask_pct,
+            "otm_pct": r.get("OTM_Pct", ""),
+            "multileg_vol": r.get("Multileg_Vol", ""),
         })
     return entries
 
 
-def load_trady_flow(data_dir: Path, target_date: str) -> list[dict[str, Any]]:
+def load_trady_flow(data_dir: Path, target_date: str = None, *, start_date: str = None, end_date: str = None) -> list[dict[str, Any]]:
     """Load trady-flow.csv and normalize."""
-    rows = _load_pipe_csv(data_dir / "trady-flow.csv", target_date)
+    rows = _load_pipe_csv(data_dir / "trady-flow.csv", target_date, start_date, end_date)
     entries = []
     for r in rows:
         entries.append({
@@ -145,9 +160,9 @@ def load_trady_flow(data_dir: Path, target_date: str) -> list[dict[str, Any]]:
     return entries
 
 
-def load_walter_news(data_dir: Path, target_date: str) -> list[dict[str, Any]]:
+def load_walter_news(data_dir: Path, target_date: str = None, *, start_date: str = None, end_date: str = None) -> list[dict[str, Any]]:
     """Load walter_openai.csv (news) and normalize."""
-    rows = _load_pipe_csv(data_dir / "walter_openai.csv", target_date)
+    rows = _load_pipe_csv(data_dir / "walter_openai.csv", target_date, start_date, end_date)
     entries = []
     for r in rows:
         tickers = _parse_tickers(r.get("key_entities_ticker", ""))
@@ -163,14 +178,14 @@ def load_walter_news(data_dir: Path, target_date: str) -> list[dict[str, Any]]:
     return entries
 
 
-def load_all_flow(data_dir: Path, target_date: str) -> list[dict[str, Any]]:
-    """Load and merge all 4 flow sources for a given date."""
+def load_all_flow(data_dir: Path, target_date: str = None, *, start_date: str = None, end_date: str = None) -> list[dict[str, Any]]:
+    """Load and merge all 4 flow sources for a given date or date range."""
     all_entries = []
-    all_entries.extend(load_golden_sweeps(data_dir, target_date))
-    all_entries.extend(load_sweeps(data_dir, target_date))
-    all_entries.extend(load_sexy_flow(data_dir, target_date))
-    all_entries.extend(load_trady_flow(data_dir, target_date))
-    logger.info("all_flow_loaded", total=len(all_entries), date=target_date)
+    all_entries.extend(load_golden_sweeps(data_dir, target_date, start_date=start_date, end_date=end_date))
+    all_entries.extend(load_sweeps(data_dir, target_date, start_date=start_date, end_date=end_date))
+    all_entries.extend(load_sexy_flow(data_dir, target_date, start_date=start_date, end_date=end_date))
+    all_entries.extend(load_trady_flow(data_dir, target_date, start_date=start_date, end_date=end_date))
+    logger.info("all_flow_loaded", total=len(all_entries), date=target_date or f"{start_date}..{end_date}")
     return all_entries
 
 
@@ -348,6 +363,17 @@ def _parse_list(val: str) -> list[str]:
     if not val or val.strip() == "":
         return []
     return [item.strip() for item in val.split(",") if item.strip()]
+
+
+def _parse_bid_ask(val: str) -> tuple[int, int]:
+    """Parse bid/ask percentage string like '2/88' → (2, 88)."""
+    if not val or "/" not in val:
+        return 0, 0
+    parts = val.split("/")
+    try:
+        return int(parts[0]), int(parts[1])
+    except (ValueError, IndexError):
+        return 0, 0
 
 
 def _infer_call_put(description: str) -> str:

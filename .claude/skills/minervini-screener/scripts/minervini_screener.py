@@ -2,7 +2,9 @@
 """
 minervini_screener.py — Mark Minervini Trend Template Stock Screener
 
-Screens stocks against all 8 SEPA Trend Template criteria:
+Screens stocks against all 8 SEPA Trend Template criteria using pre-computed
+ta_daily data in PostgreSQL (populated by update_technicals.py):
+
   1. Price > 150-day MA AND Price > 200-day MA
   2. 150-day MA > 200-day MA
   3. 200-day MA trending up ≥ 1 month (22 trading days)
@@ -10,61 +12,60 @@ Screens stocks against all 8 SEPA Trend Template criteria:
   5. Price > 50-day MA
   6. Price ≥ 30% above 52-week low
   7. Price within 25% of 52-week high
-  8. Relative Strength (RS) ≥ 70 (vs SPY)
+  8. Relative Strength (RS) ≥ 70 (percentile rank of rs_vs_spy)
 
 Usage:
-    python3 minervini_screener.py                          # Screen all universes
-    python3 minervini_screener.py --universe sp500         # S&P 500 only
-    python3 minervini_screener.py --universe nasdaq100     # NASDAQ 100 only
-    python3 minervini_screener.py --universe watchlist     # Raghu's watchlists only
+    python3 minervini_screener.py                          # Screen all tickers in ta_daily
     python3 minervini_screener.py --tickers AAPL,MSFT,NVDA # Custom tickers
     python3 minervini_screener.py --json                   # Output JSON (for dashboard)
     python3 minervini_screener.py --csv results.csv        # Output CSV file
+    python3 minervini_screener.py --save                   # Save to tracker JSON
 """
 
 import sys
 import json
+import os
 import warnings
 import argparse
-from datetime import datetime, timedelta
-from dataclasses import dataclass, asdict, field
+from datetime import datetime
+from dataclasses import dataclass, asdict
 
 warnings.filterwarnings("ignore")
 
 try:
-    import yfinance as yf
     import pandas as pd
-    import numpy as np
+    from sqlalchemy import create_engine, text
+    from dotenv import load_dotenv
 except ImportError:
-    print("ERROR: pip install yfinance pandas numpy")
+    print("ERROR: pip install pandas sqlalchemy psycopg2-binary python-dotenv")
     sys.exit(1)
 
 
 # ─────────────────────────────────────────────────────────────────────
-# TICKER UNIVERSES — hardcoded in tickers.py (no web scraping)
+# DB CONNECTION
 # ─────────────────────────────────────────────────────────────────────
 
-try:
-    from scripts.tickers import get_universe, WATCHLIST_STRONG_BUYS, WATCHLIST_IBD15
-except ImportError:
-    # Direct execution: python3 scripts/minervini_screener.py
-    import os, importlib.util
-    _dir = os.path.dirname(os.path.abspath(__file__))
-    _spec = importlib.util.spec_from_file_location("tickers", os.path.join(_dir, "tickers.py"))
-    _mod = importlib.util.module_from_spec(_spec)
-    _spec.loader.exec_module(_mod)
-    get_universe = _mod.get_universe
-    WATCHLIST_STRONG_BUYS = _mod.WATCHLIST_STRONG_BUYS
-    WATCHLIST_IBD15 = _mod.WATCHLIST_IBD15
+load_dotenv()
+
+_DB_USER = os.getenv("PG_USER", os.getenv("POSTGRES_USER", ""))
+_DB_PASS = os.getenv("PG_PASS", os.getenv("POSTGRES_PASSWORD", ""))
+_DB_HOST = os.getenv("POSTGRES_HOST", "127.0.0.1")
+_DB_PORT = os.getenv("POSTGRES_PORT", "5432")
+_DB_NAME = os.getenv("POSTGRES_DB", "postgres")
+
+_PG_CONN = f"postgresql://{_DB_USER}:{_DB_PASS}@{_DB_HOST}:{_DB_PORT}/{_DB_NAME}"
+
+
+def get_engine():
+    return create_engine(_PG_CONN)
 
 
 # ─────────────────────────────────────────────────────────────────────
-# SCREENING ENGINE
+# RESULT DATACLASS
 # ─────────────────────────────────────────────────────────────────────
 
 @dataclass
 class MinerviniResult:
-    """Result of screening a single ticker."""
     ticker: str
     price: float = 0.0
     ma_50: float = 0.0
@@ -75,13 +76,12 @@ class MinerviniResult:
     pct_above_low: float = 0.0
     pct_from_high: float = 0.0
     rs_rating: float = 0.0
-    ma200_slope_22d: float = 0.0  # 200-day MA slope over 1 month
+    ma200_slope_22d: float = 0.0
 
-    # Criteria pass/fail
     c1_price_above_150_200: bool = False
     c2_ma150_above_ma200: bool = False
     c3_ma200_trending_up: bool = False
-    c4_ma_alignment: bool = False  # 50 > 150 > 200
+    c4_ma_alignment: bool = False
     c5_price_above_50: bool = False
     c6_above_low_30pct: bool = False
     c7_within_high_25pct: bool = False
@@ -92,213 +92,188 @@ class MinerviniResult:
     passes_template: bool = False
     error: str = ""
 
-    # Source tracking
     universe: str = ""
     scan_date: str = ""
 
 
-def compute_rs_rating(stock_returns: float, all_stock_returns: list[float]) -> float:
+# ─────────────────────────────────────────────────────────────────────
+# SCREENING ENGINE (PostgreSQL-backed)
+# ─────────────────────────────────────────────────────────────────────
+
+def load_ta_data(engine, tickers: list[str] | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Compute Relative Strength rating (1-99 percentile rank).
-
-    Ranks the stock's 6-month return as a percentile among all screened stocks.
+    Load latest ta_daily rows + 22-days-ago sma200 for MA slope.
+    Returns (latest_df, slope_df).
     """
-    if not all_stock_returns:
-        return 0.0
+    ticker_filter = ""
+    params = {}
+    if tickers:
+        ticker_filter = "AND ticker = ANY(:tickers)"
+        params["tickers"] = tickers
 
-    # RS is percentile rank of stock's performance among all stocks
-    count_below = sum(1 for r in all_stock_returns if r < stock_returns)
-    percentile = (count_below / len(all_stock_returns)) * 100
-    return round(percentile, 1)
+    # Latest date available in ta_daily
+    with engine.connect() as conn:
+        latest_date = conn.execute(text("SELECT MAX(date) FROM ta_daily")).scalar()
+
+    if latest_date is None:
+        raise RuntimeError("ta_daily is empty — run update_technicals.py --mode init first")
+
+    print(f"  Screening using ta_daily as of {latest_date}", file=sys.stderr)
+
+    # Latest row for each ticker
+    latest_sql = text(f"""
+        SELECT ticker, close, sma50, sma150, sma200, week_52_high, week_52_low,
+               rs_vs_spy, date
+        FROM ta_daily
+        WHERE date = :latest_date
+        {ticker_filter}
+    """)
+    params["latest_date"] = latest_date
+
+    # 22 trading days ago sma200 (for MA200 slope criterion)
+    slope_sql = text(f"""
+        SELECT ticker, sma200 AS sma200_22d
+        FROM (
+            SELECT ticker, sma200, date,
+                   ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) AS rn
+            FROM ta_daily
+            WHERE date < :latest_date
+            {ticker_filter}
+        ) sub
+        WHERE rn = 22
+    """)
+
+    with engine.connect() as conn:
+        latest_df = pd.read_sql(latest_sql, conn, params=params)
+        slope_df  = pd.read_sql(slope_sql,  conn, params=params)
+
+    return latest_df, slope_df
 
 
-def screen_ticker(ticker: str, hist: pd.DataFrame,
-                  all_returns: list[float] = None) -> MinerviniResult:
+def compute_rs_percentile(rs_vs_spy_series: pd.Series) -> pd.Series:
+    """Rank rs_vs_spy values as percentile (1-99) within the screened universe."""
+    return rs_vs_spy_series.rank(pct=True) * 100
+
+
+def screen_from_db(tickers: list[str] | None, universe_label: str,
+                   log=None) -> list[MinerviniResult]:
     """
-    Screen a single ticker against all 8 Minervini criteria.
-
-    Args:
-        ticker: Stock ticker
-        hist: DataFrame with OHLCV data (≥252 rows)
-        all_returns: List of all stock 6-month returns for RS percentile ranking
+    Core screening function. Loads ta_daily from PostgreSQL, applies all 8 criteria.
     """
-    result = MinerviniResult(ticker=ticker, scan_date=datetime.now().strftime("%Y-%m-%d"))
+    if log is None:
+        log = lambda msg: print(msg, file=sys.stderr)
 
-    try:
-        if hist is None or len(hist) < 200:
-            result.error = f"Insufficient data ({len(hist) if hist is not None else 0} days)"
-            return result
+    engine = get_engine()
 
-        close = hist["Close"]
-        if isinstance(close, pd.DataFrame):
-            close = close.iloc[:, 0]
+    log(f"Loading ta_daily from PostgreSQL for [{universe_label}]...")
+    latest_df, slope_df = load_ta_data(engine, tickers)
 
-        current_price = float(close.iloc[-1])
-        result.price = round(current_price, 2)
+    if latest_df.empty:
+        log("ERROR: No data found in ta_daily for the requested tickers")
+        return []
 
-        # Moving averages
-        result.ma_50 = round(float(close.rolling(50).mean().iloc[-1]), 2)
-        result.ma_150 = round(float(close.rolling(150).mean().iloc[-1]), 2)
-        result.ma_200 = round(float(close.rolling(200).mean().iloc[-1]), 2)
+    log(f"  {len(latest_df)} tickers loaded")
 
-        # 52-week high/low
-        week_52 = close.iloc[-252:] if len(close) >= 252 else close
-        result.week_52_high = round(float(week_52.max()), 2)
-        result.week_52_low = round(float(week_52.min()), 2)
+    # Merge 22d-ago sma200 for slope computation
+    df = latest_df.merge(slope_df, on="ticker", how="left")
 
-        # Percentages
-        if result.week_52_low > 0:
-            result.pct_above_low = round(((current_price - result.week_52_low) / result.week_52_low) * 100, 1)
-        if result.week_52_high > 0:
-            result.pct_from_high = round(((result.week_52_high - current_price) / result.week_52_high) * 100, 1)
+    # Compute RS percentile within this screened universe
+    df["rs_rating"] = compute_rs_percentile(df["rs_vs_spy"].fillna(0))
 
-        # 200-day MA slope (over 22 trading days = ~1 month)
-        ma200_series = close.rolling(200).mean()
-        if len(ma200_series.dropna()) >= 22:
-            ma200_now = float(ma200_series.iloc[-1])
-            ma200_1mo_ago = float(ma200_series.iloc[-22])
-            if ma200_1mo_ago > 0:
-                result.ma200_slope_22d = round(((ma200_now - ma200_1mo_ago) / ma200_1mo_ago) * 100, 3)
-
-        # 6-month stock return for RS
-        if len(close) >= 126:
-            stock_6m_return = ((current_price / float(close.iloc[-126])) - 1) * 100
-        else:
-            stock_6m_return = 0.0
-
-        # RS Rating (percentile rank within screened universe)
-        if all_returns:
-            result.rs_rating = compute_rs_rating(stock_6m_return, all_returns)
-        else:
-            result.rs_rating = 0.0
-
-        # ═══════════════════════════════════════════════════════════
-        # 8 CRITERIA CHECKS
-        # ═══════════════════════════════════════════════════════════
-
-        # C1: Price > 150-day MA AND Price > 200-day MA
-        result.c1_price_above_150_200 = (current_price > result.ma_150) and (current_price > result.ma_200)
-
-        # C2: 150-day MA > 200-day MA
-        result.c2_ma150_above_ma200 = result.ma_150 > result.ma_200
-
-        # C3: 200-day MA trending up for ≥1 month
-        result.c3_ma200_trending_up = result.ma200_slope_22d > 0
-
-        # C4: 50-day MA > 150-day MA > 200-day MA (full alignment)
-        result.c4_ma_alignment = (result.ma_50 > result.ma_150 > result.ma_200)
-
-        # C5: Price > 50-day MA
-        result.c5_price_above_50 = current_price > result.ma_50
-
-        # C6: Price ≥ 30% above 52-week low
-        result.c6_above_low_30pct = result.pct_above_low >= 30.0
-
-        # C7: Price within 25% of 52-week high
-        result.c7_within_high_25pct = result.pct_from_high <= 25.0
-
-        # C8: RS ≥ 70
-        result.c8_rs_above_70 = result.rs_rating >= 70.0
-
-        # Count passed criteria
-        criteria = [
-            result.c1_price_above_150_200, result.c2_ma150_above_ma200,
-            result.c3_ma200_trending_up, result.c4_ma_alignment,
-            result.c5_price_above_50, result.c6_above_low_30pct,
-            result.c7_within_high_25pct, result.c8_rs_above_70,
-        ]
-        result.criteria_passed = sum(criteria)
-        result.passes_template = all(criteria)
-
-    except Exception as e:
-        result.error = str(e)
-
-    return result
-
-
-def run_screen(tickers: list[str], universe_label: str = "custom",
-               progress_callback=None) -> list[MinerviniResult]:
-    """
-    Run the full Minervini screen on a list of tickers.
-
-    Args:
-        tickers: List of ticker symbols
-        universe_label: Label for the universe (for tracking)
-        progress_callback: Optional callable(msg: str) for progress updates
-
-    Returns:
-        List of MinerviniResult, sorted by criteria_passed desc then rs_rating desc
-    """
-    def log(msg):
-        if progress_callback:
-            progress_callback(msg)
-        else:
-            print(msg, file=sys.stderr)
-
-    # Deduplicate
-    tickers = list(set(t.upper().strip() for t in tickers if t.strip()))
-    log(f"Screening {len(tickers)} tickers from [{universe_label}]...")
-
-    # Batch download all tickers (yfinance handles batching efficiently)
-    log(f"Batch downloading {len(tickers)} tickers (this may take 30-60 seconds)...")
-
-    # Download in chunks to avoid timeout
-    chunk_size = 50
-    all_data = {}
-    for i in range(0, len(tickers), chunk_size):
-        chunk = tickers[i:i + chunk_size]
-        log(f"  Downloading batch {i // chunk_size + 1}/{(len(tickers) + chunk_size - 1) // chunk_size}...")
-        try:
-            data = yf.download(chunk, period="1y", progress=False, auto_adjust=True, group_by="ticker")
-            if len(chunk) == 1:
-                all_data[chunk[0]] = data
-            else:
-                for t in chunk:
-                    try:
-                        ticker_data = data[t] if t in data.columns.get_level_values(0) else None
-                        if ticker_data is not None and not ticker_data.empty:
-                            all_data[t] = ticker_data
-                    except (KeyError, TypeError):
-                        pass
-        except Exception as e:
-            log(f"  Batch error: {e}")
-
-    log(f"Downloaded data for {len(all_data)}/{len(tickers)} tickers")
-
-    # First pass: compute 6-month returns for RS percentile ranking
-    all_6m_returns = []
-    for t, hist in all_data.items():
-        try:
-            close = hist["Close"]
-            if isinstance(close, pd.DataFrame):
-                close = close.iloc[:, 0]
-            if len(close) >= 126:
-                ret = ((float(close.iloc[-1]) / float(close.iloc[-126])) - 1) * 100
-                all_6m_returns.append(ret)
-        except Exception:
-            pass
-
-    # Second pass: screen each ticker
-    log("Running Minervini criteria checks...")
     results = []
-    for t in tickers:
-        hist = all_data.get(t)
-        result = screen_ticker(t, hist, all_6m_returns)
-        result.universe = universe_label
-        results.append(result)
+    scan_date = datetime.now().strftime("%Y-%m-%d")
 
-    # Sort: passes first, then by criteria count desc, then RS desc
+    for _, row in df.iterrows():
+        r = MinerviniResult(ticker=row["ticker"], scan_date=scan_date, universe=universe_label)
+
+        try:
+            price    = float(row["close"]) if pd.notna(row["close"]) else None
+            ma50     = float(row["sma50"])   if pd.notna(row["sma50"])   else None
+            ma150    = float(row["sma150"])  if pd.notna(row["sma150"])  else None
+            ma200    = float(row["sma200"])  if pd.notna(row["sma200"])  else None
+            hi52     = float(row["week_52_high"]) if pd.notna(row["week_52_high"]) else None
+            lo52     = float(row["week_52_low"])  if pd.notna(row["week_52_low"])  else None
+            ma200_22 = float(row["sma200_22d"])   if pd.notna(row.get("sma200_22d")) else None
+            rs       = float(row["rs_rating"])
+
+            if price is None or ma50 is None or ma150 is None or ma200 is None:
+                r.error = "Missing indicator data"
+                results.append(r)
+                continue
+
+            r.price        = round(price, 2)
+            r.ma_50        = round(ma50, 2)
+            r.ma_150       = round(ma150, 2)
+            r.ma_200       = round(ma200, 2)
+            r.week_52_high = round(hi52, 2) if hi52 else 0.0
+            r.week_52_low  = round(lo52, 2) if lo52 else 0.0
+            r.rs_rating    = round(rs, 1)
+
+            if lo52 and lo52 > 0:
+                r.pct_above_low = round(((price - lo52) / lo52) * 100, 1)
+            if hi52 and hi52 > 0:
+                r.pct_from_high = round(((hi52 - price) / hi52) * 100, 1)
+
+            if ma200_22 and ma200_22 > 0:
+                r.ma200_slope_22d = round(((ma200 - ma200_22) / ma200_22) * 100, 3)
+
+            # ── 8 Criteria ──────────────────────────────────────────
+            r.c1_price_above_150_200 = (price > ma150) and (price > ma200)
+            r.c2_ma150_above_ma200   = ma150 > ma200
+            r.c3_ma200_trending_up   = r.ma200_slope_22d > 0
+            r.c4_ma_alignment        = (ma50 > ma150 > ma200)
+            r.c5_price_above_50      = price > ma50
+            r.c6_above_low_30pct     = r.pct_above_low >= 30.0
+            r.c7_within_high_25pct   = r.pct_from_high <= 25.0
+            r.c8_rs_above_70         = rs >= 70.0
+
+            criteria = [
+                r.c1_price_above_150_200, r.c2_ma150_above_ma200,
+                r.c3_ma200_trending_up,   r.c4_ma_alignment,
+                r.c5_price_above_50,      r.c6_above_low_30pct,
+                r.c7_within_high_25pct,   r.c8_rs_above_70,
+            ]
+            r.criteria_passed  = sum(criteria)
+            r.passes_template  = all(criteria)
+
+        except Exception as e:
+            r.error = str(e)
+
+        results.append(r)
+
     results.sort(key=lambda r: (r.passes_template, r.criteria_passed, r.rs_rating), reverse=True)
 
-    # Summary
-    passers = sum(1 for r in results if r.passes_template)
+    passers   = sum(1 for r in results if r.passes_template)
     near_miss = sum(1 for r in results if r.criteria_passed >= 6 and not r.passes_template)
-    errors = sum(1 for r in results if r.error)
+    errors    = sum(1 for r in results if r.error)
     log(f"\n{'='*50}")
     log(f"RESULTS: {passers} pass all 8 | {near_miss} near-miss (6-7/8) | {errors} errors")
     log(f"{'='*50}")
 
+    # Write is_minervini + minervini_score back to ta_daily for the latest date
+    with engine.connect() as conn:
+        _latest = conn.execute(text("SELECT MAX(date) FROM ta_daily")).scalar()
+    _write_scores_to_db(engine, results, _latest)
+
     return results
+
+
+def _write_scores_to_db(engine, results: list[MinerviniResult], latest_date):
+    """UPDATE ta_daily SET is_minervini, minervini_score for the latest date."""
+    rows = [
+        {"ticker": r.ticker, "is_minervini": r.passes_template, "minervini_score": r.criteria_passed}
+        for r in results if not r.error
+    ]
+    if not rows:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("""
+            UPDATE ta_daily SET is_minervini = :is_minervini, minervini_score = :minervini_score
+            WHERE ticker = :ticker AND date = :latest_date
+        """), [{"ticker": r["ticker"], "is_minervini": r["is_minervini"],
+                "minervini_score": r["minervini_score"], "latest_date": latest_date}
+               for r in rows])
+    print(f"  Written is_minervini + minervini_score for {len(rows)} tickers (date={latest_date})", file=sys.stderr)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -306,31 +281,27 @@ def run_screen(tickers: list[str], universe_label: str = "custom",
 # ─────────────────────────────────────────────────────────────────────
 
 def to_json(results: list[MinerviniResult]) -> str:
-    """Convert results to JSON string."""
     return json.dumps([asdict(r) for r in results], indent=2)
 
 
 def to_csv(results: list[MinerviniResult], filepath: str):
-    """Write results to CSV file."""
     df = pd.DataFrame([asdict(r) for r in results])
     df.to_csv(filepath, index=False)
     return filepath
 
 
 def print_summary(results: list[MinerviniResult]):
-    """Print a compact summary table."""
     print(f"\n{'Ticker':<8} {'Price':>8} {'50MA':>8} {'150MA':>8} {'200MA':>8} "
           f"{'RS':>5} {'%Low':>6} {'%Hi':>5} {'Pass':>4} {'Grade'}")
     print("-" * 85)
-
     for r in results:
         if r.error:
             print(f"{r.ticker:<8} {'ERROR':>8} — {r.error[:50]}")
             continue
-
         grade = "★ PASS" if r.passes_template else f"  {r.criteria_passed}/8"
         print(f"{r.ticker:<8} {r.price:>8.2f} {r.ma_50:>8.2f} {r.ma_150:>8.2f} {r.ma_200:>8.2f} "
-              f"{r.rs_rating:>5.1f} {r.pct_above_low:>5.1f}% {r.pct_from_high:>4.1f}% {r.criteria_passed:>3}/8 {grade}")
+              f"{r.rs_rating:>5.1f} {r.pct_above_low:>5.1f}% {r.pct_from_high:>4.1f}% "
+              f"{r.criteria_passed:>3}/8 {grade}")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -341,9 +312,6 @@ TRACKER_PATH = "/media/SHARED/trade-data/minervini/tracker.json"
 
 
 def save_scan(results: list[MinerviniResult], universe: str):
-    """Save scan results to tracker for longitudinal tracking."""
-    import os
-
     try:
         with open(TRACKER_PATH) as f:
             tracker = json.load(f)
@@ -361,7 +329,7 @@ def save_scan(results: list[MinerviniResult], universe: str):
     }
 
     tracker["scans"].append(scan)
-    tracker["scans"] = tracker["scans"][-50:]  # Keep last 50 scans
+    tracker["scans"] = tracker["scans"][-50:]
 
     os.makedirs(os.path.dirname(TRACKER_PATH), exist_ok=True)
     with open(TRACKER_PATH, "w") as f:
@@ -371,13 +339,12 @@ def save_scan(results: list[MinerviniResult], universe: str):
 
 
 def get_new_passers(results: list[MinerviniResult]) -> tuple[list[str], list[str]]:
-    """Compare current passers to last scan. Returns (new_passers, dropped_passers)."""
     try:
         with open(TRACKER_PATH) as f:
             tracker = json.load(f)
         if len(tracker.get("scans", [])) < 2:
             return [], []
-        last = set(tracker["scans"][-2].get("passers", []))
+        last    = set(tracker["scans"][-2].get("passers", []))
         current = set(r.ticker for r in results if r.passes_template)
         return list(current - last), list(last - current)
     except (FileNotFoundError, json.JSONDecodeError):
@@ -389,33 +356,23 @@ def get_new_passers(results: list[MinerviniResult]) -> tuple[list[str], list[str
 # ─────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Minervini Trend Template Screener")
-    parser.add_argument("--universe", default="all",
-                        choices=["all", "sp500", "nasdaq100", "watchlist"],
-                        help="Ticker universe to screen")
+    parser = argparse.ArgumentParser(description="Minervini Trend Template Screener (PostgreSQL-backed)")
     parser.add_argument("--tickers", type=str, default="",
-                        help="Comma-separated custom tickers")
-    parser.add_argument("--json", action="store_true", help="Output JSON")
-    parser.add_argument("--csv", type=str, default="", help="Output CSV to filepath")
-    parser.add_argument("--save", action="store_true", help="Save to tracker")
+                        help="Comma-separated tickers to screen (default: all in ta_daily)")
+    parser.add_argument("--json",   action="store_true", help="Output JSON")
+    parser.add_argument("--csv",    type=str, default="", help="Output CSV to filepath")
+    parser.add_argument("--save",   action="store_true", help="Save scan to tracker JSON")
     args = parser.parse_args()
 
-    # Build ticker list
-    if args.tickers:
-        tickers = args.tickers.upper().split(",")
-        universe = "custom"
-    else:
-        tickers = get_universe(args.universe)
-        universe = args.universe
+    tickers   = [t.strip().upper() for t in args.tickers.split(",") if t.strip()] if args.tickers else None
+    universe  = "custom" if tickers else "all_ta_daily"
 
-    if not tickers:
-        print("ERROR: No tickers to screen")
+    results = screen_from_db(tickers, universe)
+
+    if not results:
+        print("No results.")
         sys.exit(1)
 
-    # Run screen
-    results = run_screen(tickers, universe)
-
-    # Output
     if args.json:
         print(to_json(results))
     elif args.csv:
@@ -424,10 +381,14 @@ def main():
     else:
         print_summary(results)
 
-    # Save to tracker
     if args.save:
         scan = save_scan(results, universe)
+        new_in, dropped = get_new_passers(results)
         print(f"\nSaved scan: {scan['total_passing']} passers, {scan['near_miss']} near-miss")
+        if new_in:
+            print(f"NEW: {', '.join(new_in)}")
+        if dropped:
+            print(f"DROPPED: {', '.join(dropped)}")
 
     return results
 

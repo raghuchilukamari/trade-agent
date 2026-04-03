@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # ── Polygon ──────────────────────────────────────
     polygon_api_key: str = ""
 
+    # ── Massive API ──────────────────────────────────
+    massive_api_key: str = ""
+
     # ── Ollama ───────────────────────────────────────
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3.5:9b"

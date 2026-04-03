@@ -86,5 +86,5 @@ After identifying a Trend Template stock, the ideal entry is at a VCP:
 | StockAnalysis | stockanalysis.com/stocks/TICKER/financials/ | 5 year balance sheet             |
 | Barchart | barchart.com/stocks/quotes/TICKER/technical-analysis | MA data (5,20,50,100,200)        |
 | TipRanks | tipranks.com/stocks/TICKER/technical-analysis | Technical Analysis like RS, MACD |
-| Finviz | finviz.com/quote.ashx?t=TICKER | Fundamentals + 20,50,200 SMAs    |
+| Finviz | finviz.com/quote.ashx?t=TICKER | Fundamentals + 20,50,200 SMAs    |add 
 | TradingView | tradingview.com/symbols/NASDAQ-TICKER/ | 52-week range, MAs               |
