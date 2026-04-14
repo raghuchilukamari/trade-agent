@@ -1,0 +1,30 @@
+Act as a senior Quant Analyst at an Investment Bank. I have two lists of tickers representing a delta in my Minervini screener state between today and the previous scan.
+
+Inputs:
+
+NEW:
+DROPPED:
+Query to get NEW, DROPPED -
+"""
+SELECT
+    new_additions,
+    new_removals
+FROM
+    dashboard.minervini_tracker
+WHERE
+    scan_date = (SELECT MAX(scan_date) FROM dashboard.minervini_tracker);
+"""
+
+
+Data Join & Search: Identify Sector and Industry of the stocks in both lists
+
+Rotation Table: Construct a 'Rotation Table: Added vs. Removed' with the following columns: [Sector], [NEW Additions (Added)], [DROPPED (Removed)], and [Quant Analysis].
+
+Regime Analysis: In the 'Quant Analysis' column, synthesize the shift using theMarket Regime context:
+Example:
+The Iran/Strait of Hormuz energy disruption and its impact on shipping/drilling.
+The 'Age of Fragmentation' theme (supply chain resilience and military defense).
+The rotation from bond-proxy Utilities/Real Estate into Regional Banks and Semiconductor hardware.
+
+Sample analysis:
+.claude/skills/minervini-screener/Rotation analysis.png
