@@ -19,6 +19,10 @@
         "@modelcontextprotocol/server-postgres",
         "postgresql://${PG_USER}:${PG_PASS}@localhost:5432/postgres"
       ]
+    },
+    "alphavantage": {
+      "command": "uvx",
+      "args": ["marketdata-mcp-server", "${ALPHAVANTAGE_API_KEY}"]
     }
   }
 }

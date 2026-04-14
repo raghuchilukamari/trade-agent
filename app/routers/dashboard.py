@@ -28,9 +28,9 @@ import yfinance as yf
 from fastapi import APIRouter, Query
 
 from app.core.database import db_manager
-from app.core.polygon_client import polygon_manager
+
 from app.services.deep_itm import apply_deep_itm_batch
-from app.services.flow_parser import load_all_flow, load_walter_news
+from app.services.flow_parser_v0 import load_all_flow, load_walter_news
 from app.services.flow_scorer import (
     aggregate_sectors,
     calc_dte,
@@ -41,7 +41,6 @@ from app.services.flow_scorer import (
 )
 from app.services.opex_calendar import get_full_opex_context
 from app.services.premium_calculator import format_premium_m, premium_significance
-from app.services.watchlist import get_ticker_marks_str
 from config.settings import settings
 
 logger = structlog.get_logger(__name__)
@@ -149,37 +148,34 @@ async def command_center():
     """
     today = date.today()
 
-    # Fetch live prices — try Polygon first, fall back to yfinance
+    # Fetch live prices via yfinance
     price_symbols = ["SPY", "QQQ", "^VIX", "DX-Y.NYB", "GC=F", "CL=F"]
     display_names = {"^VIX": "VIX", "DX-Y.NYB": "DXY", "GC=F": "GOLD", "CL=F": "OIL"}
     prices = {}
     prev_close = {}
     change_pct = {}
-    if polygon_manager.is_available:
-        prices = await polygon_manager.get_batch_prices(["SPY", "QQQ"])
-    if not prices:
-        try:
-            loop = asyncio.get_event_loop()
-            def _yf_fetch():
-                data = {}
-                pc = {}
-                cp = {}
-                tickers = yf.download(price_symbols, period="2d", interval="1d",
-                                      auto_adjust=True, progress=False)
-                close = tickers["Close"] if "Close" in tickers.columns.get_level_values(0) else tickers.xs("Close", axis=1, level=0)
-                for sym in price_symbols:
-                    name = display_names.get(sym, sym)
-                    if sym in close.columns and len(close[sym].dropna()) >= 1:
-                        vals = close[sym].dropna()
-                        last = float(vals.iloc[-1])
-                        prev = float(vals.iloc[-2]) if len(vals) >= 2 else last
-                        data[name] = last
-                        pc[name] = prev
-                        cp[name] = round((last - prev) / prev * 100, 2) if prev else 0.0
-                return data, pc, cp
-            prices, prev_close, change_pct = await loop.run_in_executor(None, _yf_fetch)
-        except Exception as e:
-            logger.warning("price_fetch_failed", error=str(e))
+    try:
+        loop = asyncio.get_event_loop()
+        def _yf_fetch():
+            data = {}
+            pc = {}
+            cp = {}
+            tickers = yf.download(price_symbols, period="2d", interval="1d",
+                                  auto_adjust=True, progress=False)
+            close = tickers["Close"] if "Close" in tickers.columns.get_level_values(0) else tickers.xs("Close", axis=1, level=0)
+            for sym in price_symbols:
+                name = display_names.get(sym, sym)
+                if sym in close.columns and len(close[sym].dropna()) >= 1:
+                    vals = close[sym].dropna()
+                    last = float(vals.iloc[-1])
+                    prev = float(vals.iloc[-2]) if len(vals) >= 2 else last
+                    data[name] = last
+                    pc[name] = prev
+                    cp[name] = round((last - prev) / prev * 100, 2) if prev else 0.0
+            return data, pc, cp
+        prices, prev_close, change_pct = await loop.run_in_executor(None, _yf_fetch)
+    except Exception as e:
+        logger.warning("price_fetch_failed", error=str(e))
 
     opex = get_full_opex_context(today)
 
@@ -262,11 +258,24 @@ async def flow_scanner(
         ticker_sources[e["symbol"]].add(e["source"])
     repeated = {s for s, srcs in ticker_sources.items() if len(srcs) >= 2}
 
-    # Fetch prices for Deep ITM (if Polygon available)
+    # Fetch prices for Deep ITM via yfinance
     unique_symbols = list(set(e["symbol"] for e in entries))[:50]
     prices: dict[str, float] = {}
-    if polygon_manager.is_available:
-        prices = await polygon_manager.get_batch_prices(unique_symbols)
+    try:
+        loop = asyncio.get_event_loop()
+        def _yf_batch():
+            tickers = yf.download(unique_symbols[:20], period="1d", interval="1d",
+                                  auto_adjust=True, progress=False)
+            result = {}
+            if not tickers.empty:
+                close = tickers["Close"] if "Close" in tickers.columns.get_level_values(0) else tickers.xs("Close", axis=1, level=0)
+                for sym in unique_symbols[:20]:
+                    if sym in close.columns and len(close[sym].dropna()) >= 1:
+                        result[sym] = float(close[sym].dropna().iloc[-1])
+            return result
+        prices = await loop.run_in_executor(None, _yf_batch)
+    except Exception as e:
+        logger.warning("deep_itm_price_fetch_failed", error=str(e))
 
     # Apply Deep ITM
     entries = await apply_deep_itm_batch(entries, prices)
@@ -293,7 +302,7 @@ async def flow_scanner(
 
         scored.append({
             "symbol": e["symbol"],
-            "marks": get_ticker_marks_str(e["symbol"]),
+            "marks": "",
             "call_put": e.get("call_put", ""),
             "strike": e.get("strike"),
             "expiration": e.get("expiration"),
@@ -536,18 +545,26 @@ async def sector_rotation(
 @router.get("/market-events")
 async def market_events():
     """
-    Weekly market events from dashboard.skill_outputs (market-events-tracker skill).
+    Weekly market events from HTML files generated by market-events-tracker skill.
     """
-    rows = await db_manager.get_latest_skill_output("market-events-tracker", limit=4)
-    return {
-        "events": [
-            {
-                "run_date": str(r.get("run_date", "")),
-                "output": r.get("output_json", {}),
-            }
-            for r in rows
-        ],
-    }
+    import glob
+    import os
+    
+    events_dir = "/media/SHARED/trade-data/market-events"
+    html_files = glob.glob(f"{events_dir}/market_events_*.html")
+    if not html_files:
+        return {"html": ""}
+    
+    # Sort files by modification time (latest first)
+    latest_file = max(html_files, key=os.path.getmtime)
+    
+    try:
+        with open(latest_file, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return {"html": html_content}
+    except Exception as e:
+        logger.error("market_events_error", error=str(e))
+        return {"html": ""}
 
 
 # ── 6. Minervini Screener ───────────────────────────────────────────────────
@@ -627,10 +644,10 @@ async def stock_intelligence(symbol: str):
             })
 
     # SEC filings
-    sec = await db_manager.get_latest_skill_output("sec-filing-analysis", symbol=sym, limit=1)
+    sec_html = await db_manager.get_latest_sec_filing_output(sym)
 
     # Equity research
-    research = await db_manager.get_latest_skill_output("equity-research", symbol=sym, limit=1)
+    research_html = await db_manager.get_latest_equity_research_output(sym)
 
     # Flow activity (recent)
     flow_alerts = await db_manager.get_latest_skill_output("flow_alerts", symbol=sym, limit=1)
@@ -669,13 +686,13 @@ async def stock_intelligence(symbol: str):
     return {
         "symbol": sym,
         "sector": get_sector(sym),
-        "marks": get_ticker_marks_str(sym),
+        "marks": "",
         "minervini": {
             "grade": minervini_grade,
             "history": grade_history,
         },
-        "sec_filing": sec[0].get("output_json") if sec else None,
-        "equity_research": research[0].get("output_json") if research else None,
+        "sec_filing": sec_html,
+        "equity_research": research_html,
         "flow_activity": flow_summary,
         "flow_alerts": flow_alerts[0].get("output_json") if flow_alerts else None,
         "alerts": [

@@ -1,4 +1,5 @@
-"""
+
+I"""
 Deep ITM Rule — CRITICAL analysis rule for proper put interpretation.
 
 Rule: If a put strike is >15-20% in-the-money, treat it as SOLD (bullish), not bought.

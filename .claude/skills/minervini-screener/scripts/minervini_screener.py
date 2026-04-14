@@ -111,9 +111,19 @@ def load_ta_data(engine, tickers: list[str] | None = None) -> tuple[pd.DataFrame
         ticker_filter = "AND ticker = ANY(:tickers)"
         params["tickers"] = tickers
 
-    # Latest date available in ta_daily
+    # Latest date available in ta_daily — use most recent date with full coverage.
+    # Guards against partial yfinance updates (e.g. today has 3 tickers, yesterday has 1472).
+    # Pick the most recent date that has >= 90% of the max ticker count across any date.
     with engine.connect() as conn:
-        latest_date = conn.execute(text("SELECT MAX(date) FROM ta_daily")).scalar()
+        row = conn.execute(text("""
+            SELECT date FROM ta_daily
+            GROUP BY date
+            HAVING COUNT(*) >= (
+                SELECT MAX(cnt) * 0.9 FROM (SELECT COUNT(*) AS cnt FROM ta_daily GROUP BY date) sub
+            )
+            ORDER BY date DESC LIMIT 1
+        """)).fetchone()
+        latest_date = row[0] if row else None
 
     if latest_date is None:
         raise RuntimeError("ta_daily is empty — run update_technicals.py --mode init first")
@@ -311,31 +321,124 @@ def print_summary(results: list[MinerviniResult]):
 TRACKER_PATH = "/media/SHARED/trade-data/minervini/tracker.json"
 
 
-def save_scan(results: list[MinerviniResult], universe: str):
-    try:
-        with open(TRACKER_PATH) as f:
-            tracker = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        tracker = {"scans": []}
+def save_scan(results: list[MinerviniResult], universe: str, engine=None):
+    scan_date = datetime.now().strftime("%Y-%m-%d")
+    current_passers = [r.ticker for r in results if r.passes_template]
 
-    scan = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "universe": universe,
-        "total_screened": len(results),
-        "total_passing": sum(1 for r in results if r.passes_template),
-        "near_miss": sum(1 for r in results if r.criteria_passed >= 6 and not r.passes_template),
-        "passers": [r.ticker for r in results if r.passes_template],
-        "near_missers": [r.ticker for r in results if r.criteria_passed >= 6 and not r.passes_template],
-    }
+    new_additions = []
+    new_removals = []
+    scan = {}
+    if engine:
+        with engine.connect() as conn:
+            # 1. Get the latest record before today
+            prev_row = conn.execute(text("""
+                SELECT passers FROM dashboard.minervini_tracker 
+                WHERE scan_date < :current_date 
+                ORDER BY scan_date DESC LIMIT 1
+            """), {"current_date": scan_date}).fetchone()
 
-    tracker["scans"].append(scan)
-    tracker["scans"] = tracker["scans"][-50:]
+            if prev_row:
+                last_passers = set(prev_row[0])  # Extract the list from the row
+                current_set = set(current_passers)
+                new_additions = list(current_set - last_passers)
+                new_removals = list(last_passers - current_set)
 
-    os.makedirs(os.path.dirname(TRACKER_PATH), exist_ok=True)
-    with open(TRACKER_PATH, "w") as f:
-        json.dump(tracker, f, indent=2)
+        # 2. Insert today's data with calculated deltas
+        with engine.begin() as conn:
+            conn.execute(text("""
+                INSERT INTO dashboard.minervini_tracker
+                    (scan_date, total_screened, total_passing, near_miss,
+                     passers, new_additions, new_removals, results_json)
+                VALUES (:scan_date, :total_screened, :total_passing, :near_miss,
+                        :passers, :new_additions, :new_removals, :results_json)
+                ON CONFLICT (scan_date) DO UPDATE SET
+                    total_passing = EXCLUDED.total_passing,
+                    passers = EXCLUDED.passers,
+                    new_additions = EXCLUDED.new_additions,
+                    new_removals = EXCLUDED.new_removals,
+                    results_json = EXCLUDED.results_json
+            """), {
+                "scan_date": scan_date,
+                "total_screened": len(results),
+                "total_passing": len(current_passers),
+                "near_miss": sum(1 for r in results if r.criteria_passed >= 6 and not r.passes_template),
+                "passers": current_passers,
+                "new_additions": new_additions,
+                "new_removals": new_removals,
+                "results_json": json.dumps([asdict(r) for r in results])
+            })
+            print(f"  Inserted scan for {scan_date} into dashboard.minervini_tracker", file=sys.stderr)
+
+        scan = {
+            "date": scan_date,
+            "universe": universe,
+            "total_screened": len(results),
+            "total_passing": sum(1 for r in results if r.passes_template),
+            "near_miss": sum(1 for r in results if r.criteria_passed >= 6 and not r.passes_template),
+            "passers": [r.ticker for r in results if r.passes_template],
+            "near_missers": [r.ticker for r in results if r.criteria_passed >= 6 and not r.passes_template],
+            "new_additions": new_additions,
+            "new_removals": new_removals
+        }
 
     return scan
+
+
+
+# def save_scan(results: list[MinerviniResult], universe: str, engine=None):
+#     try:
+#         with open(TRACKER_PATH) as f:
+#             tracker = json.load(f)
+#     except (FileNotFoundError, json.JSONDecodeError):
+#         tracker = {"scans": []}
+#
+#     scan = {
+#         "date": datetime.now().strftime("%Y-%m-%d"),
+#         "universe": universe,
+#         "total_screened": len(results),
+#         "total_passing": sum(1 for r in results if r.passes_template),
+#         "near_miss": sum(1 for r in results if r.criteria_passed >= 6 and not r.passes_template),
+#         "passers": [r.ticker for r in results if r.passes_template],
+#         "near_missers": [r.ticker for r in results if r.criteria_passed >= 6 and not r.passes_template],
+#     }
+#
+#     tracker["scans"].append(scan)
+#     tracker["scans"] = tracker["scans"][-50:]
+#
+#     os.makedirs(os.path.dirname(TRACKER_PATH), exist_ok=True)
+#     with open(TRACKER_PATH, "w") as f:
+#         json.dump(tracker, f, indent=2)
+#
+#     if engine:
+#         # Save to dashboard.minervini_tracker table
+#         with engine.begin() as conn:
+#             conn.execute(text("""
+#                 INSERT INTO dashboard.minervini_tracker
+#                     (scan_date, total_screened, total_passing, near_miss,
+#                      passers, new_additions, new_removals, results_json)
+#                 VALUES (:scan_date, :total_screened, :total_passing, :near_miss,
+#                         :passers, :new_additions, :new_removals, :results_json)
+#                 ON CONFLICT (scan_date) DO UPDATE SET
+#                     total_screened = EXCLUDED.total_screened,
+#                     total_passing = EXCLUDED.total_passing,
+#                     near_miss = EXCLUDED.near_miss,
+#                     passers = EXCLUDED.passers,
+#                     new_additions = EXCLUDED.new_additions,
+#                     new_removals = EXCLUDED.new_removals,
+#                     results_json = EXCLUDED.results_json
+#             """), {
+#                 "scan_date": scan["date"],
+#                 "total_screened": scan["total_screened"],
+#                 "total_passing": scan["total_passing"],
+#                 "near_miss": scan["near_miss"],
+#                 "passers": scan["passers"],
+#                 "new_additions": [], # Optional: fill this later if we check state
+#                 "new_removals": [],
+#                 "results_json": json.dumps([asdict(r) for r in results])
+#             })
+#             print(f"  Inserted scan into dashboard.minervini_tracker", file=sys.stderr)
+#
+#     return scan
 
 
 def get_new_passers(results: list[MinerviniResult]) -> tuple[list[str], list[str]]:
@@ -350,6 +453,13 @@ def get_new_passers(results: list[MinerviniResult]) -> tuple[list[str], list[str
     except (FileNotFoundError, json.JSONDecodeError):
         return [], []
 
+def check_already_run(engine, scan_date):
+    """Rule: No redundant runs. Checks if today's date exists in the tracker."""
+    with engine.connect() as conn:
+        exists = conn.execute(text(
+            "SELECT 1 FROM dashboard.minervini_tracker WHERE scan_date = :d"
+        ), {"d": scan_date}).scalar()
+    return bool(exists)
 
 # ─────────────────────────────────────────────────────────────────────
 # CLI
@@ -366,31 +476,49 @@ def main():
 
     tickers   = [t.strip().upper() for t in args.tickers.split(",") if t.strip()] if args.tickers else None
     universe  = "custom" if tickers else "all_ta_daily"
+    engine = get_engine()
+
+    scan_date = datetime.now().strftime("%Y-%m-%d")
+
+    # PRE-FLIGHT CHECK
+    if check_already_run(engine, scan_date):
+        print(f"[-] Minvervini Screen already ran for {scan_date}. Fetch results directly from db, Skipping run.", file=sys.stderr)
+        return
 
     results = screen_from_db(tickers, universe)
 
-    if not results:
-        print("No results.")
-        sys.exit(1)
 
-    if args.json:
-        print(to_json(results))
-    elif args.csv:
-        to_csv(results, args.csv)
-        print(f"Saved to {args.csv}")
-    else:
-        print_summary(results)
+    scan = save_scan(results, universe, engine)
+    new_in, dropped = scan['new_additions'], scan['new_removals']
+    print(f"\nSaved scan: {scan['total_passing']} passers, {scan['near_miss']} near-miss")
+    if new_in:
+        print(f"NEW ADDITIONS: {', '.join(new_in)}")
+    if dropped:
+        print(f"DROPPED FROM YESTERDAY: {', '.join(dropped)}")
 
-    if args.save:
-        scan = save_scan(results, universe)
-        new_in, dropped = get_new_passers(results)
-        print(f"\nSaved scan: {scan['total_passing']} passers, {scan['near_miss']} near-miss")
-        if new_in:
-            print(f"NEW: {', '.join(new_in)}")
-        if dropped:
-            print(f"DROPPED: {', '.join(dropped)}")
+    # if not results:
+    #     print("No results.")
+    #     sys.exit(1)
+    #
+    # if args.json:
+    #     print(to_json(results))
+    # elif args.csv:
+    #     to_csv(results, args.csv)
+    #     print(f"Saved to {args.csv}")
+    # else:
+    #     print_summary(results)
+    #
+    # if args.save:
+    #     engine = get_engine()
+    #     scan = save_scan(results, universe, engine)
+    #     new_in, dropped = scan['new_additions'], scan['new_removals']
+    #     print(f"\nSaved scan: {scan['total_passing']} passers, {scan['near_miss']} near-miss")
+    #     if new_in:
+    #         print(f"NEW: {', '.join(new_in)}")
+    #     if dropped:
+    #         print(f"DROPPED: {', '.join(dropped)}")
 
-    return results
+    return scan
 
 
 if __name__ == "__main__":

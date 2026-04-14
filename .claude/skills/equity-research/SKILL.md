@@ -37,12 +37,15 @@ Research and present:
 - **Balance Sheet:** debt-to-equity, net cash/debt position, current ratio, interest coverage
 - **Insider Activity:** recent Form 4 filings (buys/sells), insider ownership %, any cluster buying/selling
 - **Shareholder Returns:** dividend yield (if any), buyback program, total shareholder return
+- **Analyst Consensus:** consensus rating (Strong Buy/Buy/Hold/Sell), mean/low/high price targets, total analyst count, recent upgrades/downgrades (last 90 days). Source: Benzinga via `mcp__massive__list_benzinga_consensus_ratings` and `mcp__massive__list_benzinga_ratings`
 
 **Data sources (search in this order):**
+0. Postrges will have preloaded fundamental data for a lot of tickers - dashboard.equity_fundamentals & dashboard.equity_fundamental_flags have a lot of data. Check that data first before doing any websearch for fundamentals
 1. `"TICKER financials revenue margin"` → Macrotrends, StockAnalysis.com, WisesheetHQ
 2. `"TICKER valuation P/E EV/EBITDA vs peers"` → GuruFocus, FinViz, SimplyWall.St
-3. `"TICKER insider trading Form 4 2026"` → OpenInsider, SEC EDGAR
+3. `"TICKER insider trading Form 4 2026"` → SEC EDGAR
 4. `"TICKER free cash flow balance sheet"` → Macrotrends, StockAnalysis.com
+5. **Benzinga Consensus (MCP):** Use `mcp__massive__list_benzinga_consensus_ratings` with `ticker=TICKER` to get analyst consensus rating, price targets, and analyst count. Also use `mcp__massive__list_benzinga_ratings` with `ticker=TICKER, limit=5` for recent individual analyst actions (upgrades/downgrades).
 
 ### Section 2: Thesis Validation
 
@@ -53,7 +56,7 @@ Research and present:
 ### Section 3: Sector & Macro View
 
 - **Sector Overview:** current state of the sector (growth, headwinds, tailwinds)
-- **Macro Trends:** relevant macroeconomic factors (rates, inflation, GDP, consumer spending, trade policy)
+- **Macro Trends:** relevant macroeconomic factors (rates, inflation, GDP, consumer spending, trade policy) - `kb/macro/weekly/*` will have weekly regime changes. 
 - **Competitive Positioning:** where the company sits vs peers — market share, moat, differentiation
 
 **Data sources:**
@@ -86,12 +89,16 @@ Deliver exactly:
 
 ### Single ticker: "Analyze NVDA"
 
-1. **Web search in parallel** (3-4 searches simultaneously):
+1. **MCP data fetch** (before web searches):
+   - `mcp__massive__list_benzinga_consensus_ratings(ticker=TICKER)` — consensus + price targets
+   - `mcp__massive__list_benzinga_ratings(ticker=TICKER, limit=5)` — recent analyst actions
+   - `mcp__massive__list_stock_financials(ticker=TICKER, limit=4)` — quarterly financials if available
+2. **Web search in parallel** (3-4 searches simultaneously):
    - Financials + margins + FCF
    - Valuation + peer comparison
    - Insider activity + institutional ownership
    - Recent news + catalysts
-2. **Synthesize data** into the 5-section report
+3. **Synthesize data** into the 5-section report
 3. **Cross-reference** with other skills if relevant:
    - Run SEC filing analysis if insider activity is notable → `sec-filing-analysis` skill
    - Run Minervini screen if user also wants technical confirmation → `minervini-screener` skill
@@ -115,13 +122,9 @@ Deliver exactly:
 
 4. **Rank tickers** by investment attractiveness given Raghu's conservative philosophy
 
-### Watchlist sweep: "Review my positions"
+### Multi-ticker sweep: "Review these positions"
 
-Use Raghu's known watchlists:
-- **Strong Buys:** DDOG, NVDA, AXON, NOW, UBER, IRM, VST, AVGO, AMD, AMZN, ANET, MSI, BSX, MSFT, AZO, CRM
-- **IBD15:** ANAB, MU, IAG, TVTX, RKLB, PACS, CDE, GFI, KGC, AU, PLTR
-
-For watchlist sweeps, deliver abbreviated reports (summary + recommendation only) with a ranking table.
+When Raghu provides a list of tickers, deliver abbreviated reports (summary + recommendation only) with a ranking table.
 
 ---
 
@@ -153,6 +156,34 @@ Given Raghu's capital-preservation priority:
 | Cyclical peak + margin compression | Hold or reduce |
 | High short interest + negative catalysts | Avoid |
 | Dividend grower + fortress balance sheet | Buy (conservative pick) |
+| Strong Buy consensus + price target >15% upside | Buy (analyst-confirmed) |
+| Consensus downgrade trend + target cuts | Hold or reduce |
+| Wide analyst disagreement (high/low targets diverge >50%) | Extra due diligence needed |
 
 **Bias toward:** quality companies at fair-to-cheap valuations with visible catalysts.
 **Bias against:** speculative growth, turnaround stories, heavily leveraged companies, momentum-only plays.
+
+---
+
+## DATABASE PERSISTENCE
+
+After completing every equity research analysis, persist the output to PostgreSQL.
+
+### Before running analysis — check for existing entry:
+```sql
+SELECT symbol, run_date FROM dashboard.equity_research
+WHERE symbol = '{TICKER}' ORDER BY run_date DESC LIMIT 1;
+```
+- If an entry exists within the last 7 days AND no material news/earnings/catalyst has occurred since that date, **skip the analysis** and inform the user the existing report is still current.
+- If new material events exist (earnings release, guidance change, analyst upgrade/downgrade, major news) since the last run_date, run a fresh analysis.
+
+### After analysis — save to DB:
+Generate a self-contained HTML report (same style as SEC filing analysis — inline styles, no external dependencies) and upsert:
+
+```sql
+INSERT INTO dashboard.equity_research (symbol, run_date, html)
+VALUES ('{TICKER}', '{TODAY}', '{HTML_BLOB}')
+ON CONFLICT (symbol, run_date) DO UPDATE SET html = EXCLUDED.html;
+```
+
+Use the MCP postgres tool to execute the insert.

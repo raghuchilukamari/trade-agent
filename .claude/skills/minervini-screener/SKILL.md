@@ -8,7 +8,7 @@ description: >
   find stocks near 52-week highs with strong relative strength, or any variation of
   "Minervini", "trend template", "SEPA", "Stage 2 screen", "MA alignment screen",
   "superperformance", or "which stocks are in uptrends". Also trigger when Raghu asks
-  to screen his watchlists or a universe (S&P 500, NASDAQ 100) for technically strong stocks,
+  to screen a universe (S&P 500, NASDAQ 100, or all ta_daily) for technically strong stocks,
   or asks "what's setting up" or "which stocks look good technically". Run this screener
   BEFORE considering any new position entry — it's a first-pass filter.
 ---
@@ -38,6 +38,11 @@ A stock must meet **virtually all** of these to qualify:
 
 ---
 
+## WHEN RUNNING DAILY WORKFLOW 
+1. Step-1: Run Mode 1: Local Execution
+2. Step-2: Run ROTATION ANALYSIS
+
+
 ## TWO EXECUTION MODES
 
 ### Mode 1: Local Execution (large universes — 100+ tickers)
@@ -48,17 +53,12 @@ For screening S&P 500, NASDAQ 100, or Russell 1000:
 # Install once
 pip install yfinance pandas numpy
 
-# Screen all universes (S&P 500 + NASDAQ 100 + watchlists)
-python3 scripts/minervini_screener.py --universe all --json > results.json
-
-# Screen specific universe
-python3 scripts/minervini_screener.py --universe sp500
+# Screen all tickers in ta_daily (default)
+python3 scripts/minervini_screener.py
 
 # Screen custom tickers
 python3 scripts/minervini_screener.py --tickers NVDA,AAPL,MSFT,PLTR
 
-# Output CSV for pipeline integration
-python3 scripts/minervini_screener.py --universe all --csv /data/minervini/scan.csv --save
 ```
 
 **The script handles everything:** batch yfinance download, all 8 criteria, RS percentile ranking, result sorting, tracker JSON persistence.
@@ -69,64 +69,41 @@ python3 scripts/minervini_screener.py --universe all --csv /data/minervini/scan.
 
 ### Mode 2: Chat Execution (targeted screening — <30 tickers)
 
-When Raghu asks to screen specific tickers or his watchlists in chat:
+When Raghu asks to screen specific tickers in chat or "Does TICKER pass Minervini?" in chat:
 
-1. **Web search for each ticker's technical data** (MA values, 52w range)
-   - Search: `"TICKER" stock 50-day 200-day moving average 52-week`
-   - Best sources: StockAnalysis.com, Barchart, TipRanks, GuruFocus
-   - Or `web_fetch` from known good URLs
+1. Get technical data from ta_daily
+2. Apply all 8 criteria
+3. Show pass/fail table with values
+4. Verdict: PASS / NEAR MISS (which criteria failed?) / FAIL
+5**Render dashboard** via `visualize:show_widget`
 
-2. **Extract from search results:**
-   - Current price
-   - 50-day SMA, 150-day SMA, 200-day SMA
-   - 52-week high and 52-week low
-   - RS rating (if available) or compute from 6-month performance vs SPY
+**For chat mode, search in batches of 3-5 tickers** to be efficient.
 
-3. **Apply all 8 criteria** per the table above
+### ROTATION ANALYSIS:
+1. Execute `.claude/skills/minervini-screener/Rotation_prompt`
 
-4. **Render dashboard** via `visualize:show_widget`
-
-**For chat mode, search in batches of 3-5 tickers** to be efficient. Prioritize the watchlist tickers first, then expand.
-
----
 
 ## TICKER UNIVERSES
 
-### Raghu's Watchlists (always included)
-**Strong Buys:** DDOG, NVDA, AXON, NOW, UBER, IRM, VST, AVGO, AMD, AMZN, ANET, MSI, BSX, MSFT, AZO, CRM
-**IBD15:** ANAB, MU, IAG, TVTX, RKLB, PACS, CDE, GFI, KGC, AU, PLTR
+- **S&P 500:** Hardcoded in `scripts/tickers.py`
+- **NASDAQ 100:** Hardcoded in `scripts/tickers.py`
+- **All ta_daily:** Default when no tickers specified (screens everything in PostgreSQL)
+- **Custom:** Any comma-separated list via `--tickers`
 
-### Expandable Universes
-- **S&P 500:** Fetched from Wikipedia (script handles this)
-- **NASDAQ 100:** Fetched from Wikipedia (script handles this)
-- **Custom:** Any comma-separated list
-
----
-
-## RELATIVE STRENGTH CALCULATION
-
-RS Rating = percentile rank of stock's 6-month return vs all screened stocks.
-
-```
-stock_6m_return = (price_today / price_126_days_ago - 1) × 100
-RS = (count of stocks with lower 6m return / total stocks) × 100
-```
-
-- RS ≥ 70 = outperforming 70% of the universe → PASS
-- RS 50-69 = average → NEAR MISS
-- RS < 50 = underperforming → FAIL
-
-**In chat mode:** If exact RS isn't available, use IBD RS Rating from search results, or estimate from 6-month price performance vs SPY.
-
----
 
 ## WORKFLOW
 
 ### When Raghu says "Run Minervini screen":
 
-1. **Determine universe** — watchlists only? S&P 500? All?
+### DAILY WORKFLOW 
+1. Step-1: Run Mode 1: Local Execution
+2. Step-2: Run ROTATION ANALYSIS
+
+### Otherwise
+
+1. **Determine universe** — all ta_daily (default), S&P 500, NASDAQ 100, or custom tickers?
 2. **Determine mode** — local (recommend for 100+) or chat (for <30)
-3. **Execute screen** — script or web search per mode
+3. **Execute screen** — use script 
 4. **Rank results** — sort by: passes_template DESC, criteria_passed DESC, RS DESC
 5. **Render dashboard** — interactive widget with:
    - Summary cards: Total screened, Full passes, Near misses
@@ -136,14 +113,6 @@ RS = (count of stocks with lower 6m return / total stocks) × 100
 6. **Save to tracker** — `{APP_HOME}/data/minervini/tracker.json`
 7. **Compare to prior scan** — highlight new passers and dropped passers
 
-### When Raghu asks "Does TICKER pass Minervini?":
-
-1. Web search for ticker's technical data
-2. Apply all 8 criteria
-3. Show pass/fail table with values
-4. Verdict: PASS / NEAR MISS (which criteria failed?) / FAIL
-
----
 
 ## DASHBOARD STRUCTURE (visualize:show_widget)
 
@@ -178,26 +147,6 @@ RS = (count of stocks with lower 6m return / total stocks) × 100
 | Individual criterion fail | — | `#E24B4A` |
 
 ---
-
-## STATE TRACKING
-
-After each scan, save to: `{APP_HOME}/data/minervini/tracker.json`
-
-```json
-{
-  "scans": [
-    {
-      "date": "2026-03-14",
-      "universe": "all",
-      "total_screened": 527,
-      "total_passing": 23,
-      "near_miss": 41,
-      "passers": ["NVDA", "AXON", "PLTR", ...],
-      "near_missers": ["MU", "DDOG", ...]
-    }
-  ]
-}
-```
 
 **Longitudinal signals:**
 - Passers count increasing over time → market breadth improving (bullish)

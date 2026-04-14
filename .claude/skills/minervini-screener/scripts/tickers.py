@@ -10,20 +10,6 @@ Last updated: March 2026. Update periodically from:
 """
 
 # ─────────────────────────────────────────────────────────────────
-# Raghu's watchlists
-# ─────────────────────────────────────────────────────────────────
-
-WATCHLIST_STRONG_BUYS = [
-    "DDOG", "NVDA", "AXON", "NOW", "UBER", "IRM", "VST", "AVGO", "AMD",
-    "AMZN", "ANET", "MSI", "BSX", "MSFT", "AZO", "CRM",
-]
-
-WATCHLIST_IBD15 = [
-    "ANAB", "MU", "IAG", "TVTX", "RKLB", "PACS", "CDE", "GFI", "KGC",
-    "AU", "PLTR",
-]
-
-# ─────────────────────────────────────────────────────────────────
 # S&P 500 (as of March 2026, source: stockanalysis.com)
 # ─────────────────────────────────────────────────────────────────
 
@@ -130,13 +116,11 @@ NASDAQ100 = [
 
 def get_universe(name: str) -> list[str]:
     """Get deduplicated ticker list by universe name."""
-    if name == "watchlist":
-        return sorted(set(WATCHLIST_STRONG_BUYS + WATCHLIST_IBD15))
-    elif name == "sp500":
+    if name == "sp500":
         return sorted(set(SP500))
     elif name == "nasdaq100":
         return sorted(set(NASDAQ100))
     elif name == "all":
-        return sorted(set(WATCHLIST_STRONG_BUYS + WATCHLIST_IBD15 + SP500 + NASDAQ100))
+        return sorted(set(SP500 + NASDAQ100))
     else:
         return [t.strip().upper() for t in name.split(",") if t.strip()]

@@ -1105,6 +1105,31 @@ Before finalizing any filing analysis:
 
 ---
 
+## DATABASE PERSISTENCE
+
+After completing every SEC filing analysis, persist the output to PostgreSQL.
+
+### Before running analysis — check for existing entry:
+```sql
+SELECT symbol, run_date FROM dashboard.sec_filing_analysis
+WHERE symbol = '{TICKER}' ORDER BY run_date DESC LIMIT 1;
+```
+- If an entry exists within the last 7 days AND no new filings/material events have occurred since that date, **skip the analysis** and inform the user the existing report is still current.
+- If new filings exist (Form 4, 10-K, 10-Q, 13F, NT filing) since the last run_date, run a fresh analysis.
+
+### After analysis — save to DB:
+Generate a self-contained HTML report (see sample at `.claude/agent-memory/sec-filing-analysis/jnj_sec_analysis_2026-03-14.html` for the template style) and upsert:
+
+```sql
+INSERT INTO dashboard.sec_filing_analysis (symbol, run_date, html)
+VALUES ('{TICKER}', '{TODAY}', '{HTML_BLOB}')
+ON CONFLICT (symbol, run_date) DO UPDATE SET html = EXCLUDED.html;
+```
+
+Use the MCP postgres tool to execute the insert. The HTML should be a complete, self-contained document with inline styles (no external dependencies).
+
+---
+
 ## KEY LEARNINGS
 
 1. **Open market purchases (P) are the only true bullish insider signal** — everything else is noise

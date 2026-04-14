@@ -57,7 +57,7 @@
        │  ├─ premium_calculator.py      │   ├─ screener/latest         │
        │  ├─ opex_calendar.py           │   ├─ screener/history        │
        │  ├─ deep_itm.py               │   ├─ stock-intelligence/{sym}│
-       │  ├─ watchlist.py               │   ├─ alerts                  │
+       │                                │   ├─ alerts                  │
        │  └─ flow_scorer.py (NEW)       │   └─ skill-output/{skill}   │
        │                                └──────────────────────────────│
        │  External: Polygon.io (live prices, snapshots)                │
@@ -211,7 +211,6 @@ Pipeline:
   2. For each row → flow_scorer.calculate_composite_score()
   3. For each row → flow_scorer.classify_direction()
   4. For puts  → deep_itm.check_deep_itm()
-  5. For each  → watchlist.get_ticker_marks()
 
 Sample Input Row (raw.sexy_flow):
   Date=2026-01-15 | Symbol=ASML | Strike=1340.0 | Call_Put=PUT

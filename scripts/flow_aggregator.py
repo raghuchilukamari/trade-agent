@@ -16,10 +16,14 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-from app.services.flow_parser import load_all_flow, load_walter_news
+from app.services.flow_parser_v0 import load_all_flow, load_walter_news
 from app.services.premium_calculator import format_premium_m
+from dotenv import load_dotenv
+import os
 
-DATA_DIR = Path("/media/SHARED/trade-data/formatted")
+load_dotenv()
+
+DATA_DIR = Path(os.getenv("FORMATTED_DIR"))
 
 SECTOR_MAP = {
     "AAPL": "Technology", "MSFT": "Technology", "GOOGL": "Technology",
@@ -59,13 +63,17 @@ SECTOR_MAP = {
 def direction(entry):
     """Determine BULLISH/BEARISH based on call/put and bid/ask side."""
     cp = entry.get("call_put", "")
-    ask = entry.get("ask_pct", 0) or 0
-    bid = entry.get("bid_pct", 0) or 0
+    ask_pct = entry.get("ask_pct", 0) or 0
+    bid_pct = entry.get("bid_pct", 0) or 0
+    otm_pct = entry.get("otm_pct", 0) or 0
+
     if cp == "CALL":
         return "BULLISH"
     if cp == "PUT":
-        if ask > 70:
-            return "BULLISH"   # put sold at ask
+        if bid_pct > ask_pct:
+            if otm_pct < -15:
+                return "BULLISH (DEEP ITM PUT SELLING)"
+            return "BULLISH (PUT SELLING)"  # put sold at ask
         return "BEARISH"
     return "NEUTRAL"
 
@@ -97,11 +105,10 @@ def aggregate(all_entries):
         if d == "BULLISH":
             t["bull_premium"] += premium
             t["bull_count"] += 1
-        else:
+        elif d == "BEARISH":
             t["bear_premium"] += premium
             t["bear_count"] += 1
-
-        if e.get("call_put") == "PUT" and (e.get("ask_pct") or 0) > 70 and premium >= 500_000:
+        elif d == "BULLISH (DEEP ITM PUT SELLING)" or d == "BULLISH (PUT SELLING)":
             put_sellers.append({
                 "symbol": sym, "strike": str(e.get("strike", "")),
                 "expiration": e.get("expiration", ""), "premium": premium,

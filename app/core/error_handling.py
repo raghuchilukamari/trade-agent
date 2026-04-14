@@ -29,19 +29,6 @@ class FlowDataError(AgentError):
     pass
 
 
-class LLMError(AgentError):
-    """Error communicating with Ollama LLM."""
-    pass
-
-
-class PolygonError(AgentError):
-    """Error from Polygon.io API."""
-    pass
-
-
-class PipelineTimeoutError(AgentError):
-    """Agent pipeline exceeded timeout."""
-    pass
 
 
 def mount_error_handling(app: FastAPI) -> None:

@@ -1,16 +1,12 @@
 """
 Trading Agent — FastAPI Application Entry Point
 
-Architecture:
-  User Request → FastAPI (main.py) → API Router → LangGraph StateGraph
-  → Parallel Nodes (tools_check, intent_classification, analysis)
-  → EdgeRouter (edge_router.py) → Sequential Nodes (generate_response)
-  → Local LLM (Ollama) → Response
+Serves the dashboard API for the React frontend (trade-dashboard).
+Data pipeline is driven by Claude Code skills, not this server.
 """
 
 from __future__ import annotations
 
-import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -20,42 +16,26 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import db_manager
 from app.core.error_handling import mount_error_handling
-from app.core.ollama_client import ollama_manager
-from app.core.polygon_client import polygon_manager
 from app.routers.get_routers import get_routers
 from config.settings import settings
 
 logger = structlog.get_logger(__name__)
 
 PROJECT_NAME = "Trading Analysis Agent"
-VERSION = "1.0.0"
+VERSION = "2.0.0"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """
-    Application lifespan — initialize and teardown shared resources.
-    Mirrors the LIFESPAN pattern from Raghu's architecture diagram.
-    """
+    """Application lifespan — initialize and teardown shared resources."""
     logger.info("starting_trading_agent", version=VERSION, env=settings.app_env)
 
-    # ── Startup: initialize connections in parallel ──
-    await asyncio.gather(
-        db_manager.initialize(),
-        ollama_manager.initialize(),
-        polygon_manager.initialize(),
-    )
-
+    await db_manager.initialize()
     logger.info("all_services_initialized")
     yield
 
-    # ── Shutdown: graceful teardown ──
     logger.info("shutting_down_trading_agent")
-    await asyncio.gather(
-        db_manager.shutdown(),
-        ollama_manager.shutdown(),
-        polygon_manager.shutdown(),
-    )
+    await db_manager.shutdown()
     logger.info("shutdown_complete")
 
 
@@ -64,7 +44,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=PROJECT_NAME,
         version=VERSION,
-        description="AI-powered options flow analysis with Agent-to-Agent architecture",
+        description="Trading dashboard API — options flow, screener, sector rotation, alerts",
         lifespan=lifespan,
     )
 
@@ -96,12 +76,6 @@ async def root():
         "service": PROJECT_NAME,
         "version": VERSION,
         "status": "operational",
-        "agents": [
-            "flow_analyst",
-            "news_analyst",
-            "opex_analyst",
-            "coordinator",
-        ],
     }
 
 
@@ -113,6 +87,6 @@ if __name__ == "__main__":
         host=settings.app_host,
         port=settings.app_port,
         reload=settings.app_debug,
-        workers=1,  # Single worker — LangGraph manages concurrency internally
+        workers=1,
         log_level=settings.log_level.lower(),
     )

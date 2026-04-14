@@ -144,6 +144,26 @@ CREATE TABLE IF NOT EXISTS dashboard.minervini_tracker (
     created_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- SEC Filing Analysis
+CREATE TABLE IF NOT EXISTS dashboard.sec_filing_analysis (
+    id         BIGSERIAL PRIMARY KEY,
+    symbol     VARCHAR(16) NOT NULL,
+    run_date   DATE NOT NULL,
+    html       TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(symbol, run_date)
+);
+
+-- Equity Research
+CREATE TABLE IF NOT EXISTS dashboard.equity_research (
+    id         BIGSERIAL PRIMARY KEY,
+    symbol     VARCHAR(16) NOT NULL,
+    run_date   DATE NOT NULL,
+    html       TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(symbol, run_date)
+);
+
 -- Sector flow time-series
 CREATE TABLE IF NOT EXISTS dashboard.sector_flow_history (
     id           BIGSERIAL PRIMARY KEY,
@@ -171,6 +191,41 @@ CREATE TABLE IF NOT EXISTS dashboard.stock_alerts (
 );
 CREATE INDEX IF NOT EXISTS idx_alerts_date ON dashboard.stock_alerts(alert_date);
 CREATE INDEX IF NOT EXISTS idx_alerts_symbol ON dashboard.stock_alerts(symbol);
+
+-- Analyst consensus ratings (from Benzinga via Massive API)
+CREATE TABLE IF NOT EXISTS dashboard.analyst_consensus (
+    id             BIGSERIAL PRIMARY KEY,
+    ticker         VARCHAR(16) NOT NULL,
+    fetch_date     DATE NOT NULL,
+    consensus      VARCHAR(32),        -- Strong Buy, Buy, Hold, Sell, Strong Sell
+    target_low     NUMERIC(12,2),
+    target_mean    NUMERIC(12,2),
+    target_high    NUMERIC(12,2),
+    total_analysts INT,
+    buy_count      INT,
+    hold_count     INT,
+    sell_count     INT,
+    raw_json       JSONB,
+    created_at     TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(ticker, fetch_date)
+);
+CREATE INDEX IF NOT EXISTS idx_consensus_ticker ON dashboard.analyst_consensus(ticker);
+
+-- Adjusted portfolio weights (post-HRP thematic + macro overlay)
+CREATE TABLE IF NOT EXISTS dashboard.portfolio_adjusted (
+    id             BIGSERIAL PRIMARY KEY,
+    run_date       DATE NOT NULL,
+    ticker         VARCHAR(16) NOT NULL,
+    strategy       VARCHAR(32) NOT NULL,   -- e.g. HRP_1M_adjusted
+    hrp_weight     NUMERIC(8,6),           -- original HRP weight
+    adj_weight     NUMERIC(8,6),           -- after overlay
+    thematic_boost NUMERIC(8,4) DEFAULT 0, -- theme alignment score
+    consensus_boost NUMERIC(8,4) DEFAULT 0,-- analyst consensus score
+    hedge_flag     BOOLEAN DEFAULT FALSE,  -- is this a macro hedge position
+    notes          TEXT,
+    created_at     TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(run_date, ticker, strategy)
+);
 """
 
 
@@ -412,6 +467,58 @@ class DatabaseManager:
                 )
             return [dict(r) for r in rows]
 
+    async def save_sec_filing_output(self, symbol: str, run_date: date, html: str) -> None:
+        """Upsert SEC filing analysis HTML output."""
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO dashboard.sec_filing_analysis (symbol, run_date, html)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (symbol, run_date)
+                DO UPDATE SET html = EXCLUDED.html, created_at = NOW()
+                """,
+                symbol, run_date, html,
+            )
+
+    async def get_latest_sec_filing_output(self, symbol: str) -> str | None:
+        """Get the most recent SEC filing analysis HTML for a ticker."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT html FROM dashboard.sec_filing_analysis
+                WHERE symbol = $1
+                ORDER BY run_date DESC LIMIT 1
+                """,
+                symbol,
+            )
+            return dict(row)["html"] if row else None
+
+    async def save_equity_research_output(self, symbol: str, run_date: date, html: str) -> None:
+        """Upsert equity research HTML output."""
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO dashboard.equity_research (symbol, run_date, html)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (symbol, run_date)
+                DO UPDATE SET html = EXCLUDED.html, created_at = NOW()
+                """,
+                symbol, run_date, html,
+            )
+
+    async def get_latest_equity_research_output(self, symbol: str) -> str | None:
+        """Get the most recent equity research HTML for a ticker."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT html FROM dashboard.equity_research
+                WHERE symbol = $1
+                ORDER BY run_date DESC LIMIT 1
+                """,
+                symbol,
+            )
+            return dict(row)["html"] if row else None
+
     async def save_minervini_scan(self, entry: dict) -> None:
         """Upsert a Minervini scan result."""
         import json as _json
@@ -525,6 +632,44 @@ class DatabaseManager:
                 {where}
                 ORDER BY alert_date DESC, severity ASC
                 LIMIT ${idx}
+                """,
+                *params,
+            )
+            return [dict(r) for r in rows]
+
+    async def get_analyst_consensus(self, ticker: str) -> dict | None:
+        """Get latest analyst consensus for a ticker."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT * FROM dashboard.analyst_consensus
+                WHERE ticker = $1
+                ORDER BY fetch_date DESC LIMIT 1
+                """,
+                ticker,
+            )
+            return dict(row) if row else None
+
+    async def get_portfolio_adjusted(self, run_date: date | None = None, strategy: str | None = None) -> list[dict]:
+        """Get adjusted portfolio weights."""
+        async with self._pool.acquire() as conn:
+            conditions = []
+            params = []
+            idx = 1
+            if run_date:
+                conditions.append(f"run_date = ${idx}")
+                params.append(run_date)
+                idx += 1
+            if strategy:
+                conditions.append(f"strategy = ${idx}")
+                params.append(strategy)
+                idx += 1
+            where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            rows = await conn.fetch(
+                f"""
+                SELECT * FROM dashboard.portfolio_adjusted
+                {where}
+                ORDER BY adj_weight DESC
                 """,
                 *params,
             )

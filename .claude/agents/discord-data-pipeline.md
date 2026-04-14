@@ -65,7 +65,8 @@ Use `app.services.flow_parser.get_flow_stats()` to count rows per channel:
 
 ```python
 from pathlib import Path
-from app.services.flow_parser import load_all_flow, get_flow_stats
+from app.services.flow_parser_v0 import load_all_flow, get_flow_stats
+
 entries = load_all_flow(Path("/media/SHARED/trade-data/formatted"), target_date="YYYY-MM-DD")
 stats = get_flow_stats(entries)
 # stats = {total_premium_m, golden_sweeps_count, total_sweeps_count, sexy_flow_count, trady_flow_count, total_entries}
@@ -87,9 +88,11 @@ Run `python3 scripts/walter_enrich.py` to enrich new walter.csv rows with entity
 After walter enrichment completes, load the enriched data and produce a geopolitical news analysis.
 
 **Data loading** — use `app.services.flow_parser.load_walter_news()`:
+
 ```python
 from pathlib import Path
-from app.services.flow_parser import load_walter_news
+from app.services.flow_parser_v0 import load_walter_news
+
 walter = load_walter_news(Path("/media/SHARED/trade-data/formatted"), start_date="YYYY-MM-DD", end_date="YYYY-MM-DD")
 # Each entry has: date, summary, sentiment_score, tickers, geopolitical_entities, sectors, commodities
 ```
@@ -98,8 +101,9 @@ walter = load_walter_news(Path("/media/SHARED/trade-data/formatted"), start_date
 1. Filter out entries with empty summaries
 2. Separate into sentiment buckets using `sentiment_score`:
    - **BULLISH:** sentiment_score >= 3.5
+   - **SLIGHTLY BULLISH:** sentiment_score = 3.0
    - **BEARISH:** sentiment_score <= 2.0
-   - (Neutral: 2.0 < score < 3.5 — used for sector counts but not listed individually)
+   - (Neutral: 2.5 — used for sector counts but not listed individually)
 3. For each bullish/bearish entry, use `geopolitical_entities` (first non-empty) as the topic, falling back to `sectors`
 4. Aggregate sector mentions across all entries (normalize casing)
 
@@ -176,7 +180,9 @@ Column definitions:
 - Signal = conviction level: MASSIVE / MAJOR / SIGNIFICANT / NOTABLE
 - Justification = concise reasoning for the direction and signal classification. Include: why bullish/bearish (e.g., "Call sweep at ask, 43.6x Vol/OI, $10M premium, hit all 4 channels 5 days straight"), Deep ITM overrides, multileg flags, news correlation, repeated hit counts, bid/ask aggression. This should read as a mini-thesis for why this trade matters.
 
+
 **Put Seller Detection** (from aggregator `put_sellers` field)
+
 | Symbol | Trade | Listed As | Actually | Evidence |
 Pull from the aggregator JSON `put_sellers` array — it already identifies puts sold at ask (>70%) with premium >= $500K, sorted by premium descending (top 20).
 
@@ -480,4 +486,19 @@ Memory is one of several persistence mechanisms available to you as you assist t
 
 ## MEMORY.md
 
-Your MEMORY.md is currently empty. When you save new memories, they will appear here.
+🟢 Bullish Signals
+- CALL + Ask Side: Someone is "buying to open" a position, betting on a price spike.
+- PUT + Bid Side: Someone is "selling to open" (writing) a put, betting the stock stays above the strike.
+- Vol > OI (Volume exceeds Open Interest): This is a "new" position being opened today, not just closing an old one.
+- High Premium + Low OTM%: A large bet ($500K+) on a strike very close to the current price suggests high conviction. 
+🔴 Bearish Signals
+- PUT + Ask Side: Someone is "buying to open" a position, betting on a price drop.
+- CALL + Bid Side: Someone is "selling to open" (writing) a call, betting the stock stays below the strike.
+- High Vol_OI_Ratio: If Volume is 5x or 10x the Open Interest, it indicates a massive "sweep" or block trade that just hit the tape. 
+
+Strike & Expiration	Shorter expirations (e.g., 4/10/2026) are "lotto" or high-urgency momentum plays.
+Side (Ask vs. Bid)	Ask = Aggressive Buyer (Bullish for Calls, Bearish for Puts). Bid = Aggressive Seller (Bearish for Calls, Bullish for Puts).
+Premium	High values ($1M+) indicate institutional "Whales" rather than retail traders.
+Vol / OI	If Vol is higher than OI, it’s a fresh position being established.
+OTM_Pct	How far the stock needs to move. A 0% OTM means the trade is "At the Money" and very sensitive to price moves.
+Bid_Ask_Pct	Shows if the trade filled closer to the Bid or Ask. >70% at Ask is a strong aggressive signal.

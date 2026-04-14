@@ -3,18 +3,39 @@ Flow data parser — loads, normalizes, and aggregates options flow from all 4 C
 
 Handles pipe-delimited CSVs: golden-sweeps, sweeps, sexy-flow, trady-flow.
 Applies ticker normalization (GOOG/GOOGL → Alphabet) and premium standardization.
+
+Data Sources	Merges 4 pipe-delimited CSV sources (Golden, Sweep, Sexy, Trady).	load_all_flow
+News Parsing	Extracts Geopolitical entities and sentiment from Walter News.	load_walter_news
+Normalization	Forces GOOG/GOOGL and BRK consistency.	normalize_symbol
+Aggregation	Calculates total, call, and put premiums per symbol.	aggregate_by_symbol
+Smart Flags	Identifies Vol/OI outliers and "Extreme" institutional activity.	get_vol_oi_outliers
+
+Scenario A: Strict Daily Audit (Current Date)
+python3 -m app.services.flow_parser
+
+Scenario B: Historical Range Analysis
+python3 -m app.services.flow_parser --start 2026-03-01 --end 2026-03-31
+
+Aggregated data
+aggregate_by_symbol(all_flow)
+
+Outlier Detection (Vol/OI Ratios):
+get_vol_oi_outliers(all_flow, threshold=10.0)
 """
 
 from __future__ import annotations
 
+import argparse
 import csv
 import re
+import sys
 from collections import defaultdict
 from datetime import date, datetime
 from io import StringIO
 from pathlib import Path
 from typing import Any
-
+import os
+from dotenv import load_dotenv
 import structlog
 
 from app.services.premium_calculator import parse_premium, format_premium_m
@@ -268,39 +289,12 @@ def get_vol_oi_outliers(entries: list[dict[str, Any]], threshold: float = 10.0) 
     return sorted(outliers, key=lambda x: x["vol_oi"], reverse=True)
 
 
-# ── FlowParser class (for router dependency injection) ───────────────────────
-
-
-class FlowParser:
-    """High-level flow parser with DB integration."""
-
-    def __init__(self, db):
-        self.db = db
-
-    async def get_quick_stats(self, target_date: date) -> dict[str, Any]:
-        from app.schema.models import QuickStats
-        entries = await self.db.get_flow_by_date(target_date)
-        stats = get_flow_stats(entries) if entries else {
-            "total_premium_m": 0, "golden_sweeps_count": 0,
-            "total_sweeps_count": 0, "sexy_flow_count": 0,
-            "trady_flow_count": 0,
-        }
-        return QuickStats(
-            target_date=target_date,
-            total_premium_m=stats["total_premium_m"],
-            golden_sweeps_count=stats["golden_sweeps_count"],
-            total_sweeps_count=stats["total_sweeps_count"],
-            sexy_flow_count=stats["sexy_flow_count"],
-            trady_flow_count=stats["trady_flow_count"],
-        )
-
-    async def get_ticker_summary(self, symbol: str, target_date: date) -> dict | None:
-        entries = await self.db.get_flow_by_date(target_date)
-        sym_entries = [e for e in entries if e.get("symbol") == symbol]
-        if not sym_entries:
-            return None
-        agg = aggregate_by_symbol(sym_entries).get(symbol, {})
-        return {
+def get_ticker_summary(entries: list[dict[str, Any]], symbol:str) -> dict | None:
+    sym_entries = [e for e in entries if e.get("symbol") == symbol]
+    if not sym_entries:
+        return None
+    agg = aggregate_by_symbol(sym_entries).get(symbol, {})
+    return {
             "symbol": symbol,
             "total_premium_usd": agg.get("total_premium", 0),
             "call_premium_usd": agg.get("call_premium", 0),
@@ -309,8 +303,7 @@ class FlowParser:
             "put_count": agg.get("put_count", 0),
             "max_vol_oi": agg.get("max_vol_oi"),
             "sources": agg.get("sources", []),
-        }
-
+    }
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -384,3 +377,81 @@ def _infer_call_put(description: str) -> str:
     elif "PUT" in desc:
         return "PUT"
     return ""
+
+
+if __name__ == "__main__":
+    import json
+    from datetime import date
+
+    load_dotenv()
+
+    # 1. Parse Arguments for Date Range
+    parser = argparse.ArgumentParser(description="Options Flow Parser Diagnostic Tool")
+    parser.add_argument("--start", type=str, help="Start date (YYYY-MM-DD)")
+    parser.add_argument("--end", type=str, help="End date (YYYY-MM-DD)")
+    args = parser.parse_args()
+
+    # 2. Environment Setup
+    env_path = os.getenv("FORMATTED_DIR")
+    data_path = Path(env_path) if env_path else Path(__file__).parent.parent.parent / "data"
+
+    # 3. Determine Target Date (Default to Current: 2026-04-07)
+    # Using the current date as the source of truth for Step 1 of your Daily Sequence
+    #today = date.today().strftime("%Y-%m-%d")
+    today = '2026-04-06'
+
+    # Logic: If no range is provided, we strictly look for 'today'
+    is_range = bool(args.start or args.end)
+    target_date = today if not is_range else None
+
+    print(f"--- Initialization: {today} ---")
+    print(f"Data Path: {data_path}")
+
+    # 4. Load Data
+    try:
+        all_flow = load_all_flow(
+            data_path,
+            target_date=target_date,
+            start_date=args.start,
+            end_date=args.end
+        )
+
+        news = load_walter_news(
+            data_path,
+            target_date=target_date,
+            start_date=args.start,
+            end_date=args.end)
+
+        # 5. Strict Existence Check
+        if not all_flow and not is_range:
+            # Throwing error as requested if current date data is missing and no range provided
+            raise FileNotFoundError(
+                f"CRITICAL: No flow data found for current date ({today}). "
+                "Verify CSV updates or provide a date range via --start/--end."
+            )
+        elif not all_flow:
+            print(f"Warning: No data found for requested range: {args.start} to {args.end}")
+            sys.exit(0)
+
+        # 6. Execute Summary (Top 10 Flow & Rule 2 Interpretation)
+        stats = get_flow_stats(all_flow)
+        print(f"\n[DAILY SUMMARY - {target_date or 'RANGE'}]")
+        print(f"Total Premium: ${stats['total_premium_m']}M | Entries: {stats['total_entries']}")
+
+        aggregated = aggregate_by_symbol(all_flow)
+        all_flow_agg_sorted = sorted(aggregated.items(), key=lambda x: x[1]['total_premium'], reverse=True)
+        top_10 = sorted(aggregated.items(), key=lambda x: x[1]['total_premium'], reverse=True)[:10]
+
+        print("\n[Full Flow INTERPRETATION]")
+        for sym, data in all_flow_agg_sorted:
+            print(
+                f"{sym} | Calls: {data['call_count']:3} | Puts: {data['put_count']:3} | Total: ${data['total_premium']:12,.2f}")
+
+
+
+    except FileNotFoundError as e:
+        print(f"\n[ERROR] {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n[UNEXPECTED ERROR] {e}")
+        sys.exit(1)

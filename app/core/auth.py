@@ -34,7 +34,7 @@ def get_auth_lifespan_initializer(name: str) -> dict[str, str]:
     else:
         # Fall back to env vars (development)
         secrets = {
-            "polygon_api_key": settings.polygon_api_key,
+            "massive_api_key": settings.massive_api_key,
             "postgres_password": settings.postgres_password,
         }
         logger.info("secrets_loaded_from_env", count=len(secrets))

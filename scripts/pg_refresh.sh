@@ -98,4 +98,22 @@ refresh_table "walter"         "$WALTER_CSV"
 refresh_table "walter_openai"  "$WALTER_OPENAI_CSV"
 
 echo "----"
-echo "All refreshes completed successfully."
+echo "All CSV refreshes completed successfully."
+
+# ── Post-refresh: Sector flow persistence ──
+echo "----"
+echo "Persisting sector flow history..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+conda run -n tradingbot python3 "${SCRIPT_DIR}/persist_sector_flow.py" || {
+  echo "WARN: persist_sector_flow.py failed (non-fatal)"
+}
+
+# ── Post-refresh: Generate alerts ──
+echo "----"
+echo "Generating stock alerts..."
+conda run -n tradingbot python3 "${SCRIPT_DIR}/generate_alerts.py" || {
+  echo "WARN: generate_alerts.py failed (non-fatal)"
+}
+
+echo "----"
+echo "All refreshes and post-processing completed successfully."

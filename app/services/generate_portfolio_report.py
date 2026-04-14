@@ -188,6 +188,7 @@ def find_next_leaders(engine, schema="dashboard"):
     # A. The Accelerators: 1M Alpha is 2x better than 1Y Alpha
     # This captures the "sudden wake up"
     df['accel_factor'] = df['alpha_1m'] / (df['alpha_1y'].replace(0, 0.001))
+    df['accel_factor'] = pd.to_numeric(df['accel_factor'], errors='coerce').fillna(0)
     accelerators = df[
         (~df['ticker'].isin(owned_tickers)) &
         (df['alpha_1m'] > 0.10) &  # Must have decent current alpha

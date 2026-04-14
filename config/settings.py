@@ -27,8 +27,7 @@ class Settings(BaseSettings):
     app_port: int = 8000
     log_level: str = "INFO"
 
-    # ── Polygon ──────────────────────────────────────
-    polygon_api_key: str = ""
+
 
     # ── Massive API ──────────────────────────────────
     massive_api_key: str = ""
@@ -56,17 +55,11 @@ class Settings(BaseSettings):
     summary_output_dir: str = "/media/SHARED/trade-data/summaries/docx"
     prior_summaries_dir: str = "/media/SHARED/trade-data/summaries"
 
-    # ── Worker Config ────────────────────────────────
-    daily_pipeline_cron: str = "0 7 * * 1-5"
-    max_concurrent_agents: int = 4
-    agent_timeout_seconds: int = 300
-
     # ── UI / CORS ────────────────────────────────────
     dashboard_url: str = "http://localhost:3000"
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
-    # ── WebSocket ────────────────────────────────────
-    ws_heartbeat_interval: int = 30
+
 
     @property
     def database_url(self) -> str:

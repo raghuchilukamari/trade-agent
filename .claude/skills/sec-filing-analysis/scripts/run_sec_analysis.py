@@ -49,6 +49,9 @@ try:
     from scripts.dso_analysis import (
         analyze_dso_trend, format_dso_analysis,
     )
+    from fundamentals import (
+        run_fundamentals
+    )
     from scripts.generate_report import build_executive_summary
 except ImportError:
     _ef = _load_module("edgar_fetcher")
@@ -56,6 +59,7 @@ except ImportError:
     _ia = _load_module("insider_analysis")
     _da = _load_module("dso_analysis")
     _gr = _load_module("generate_report")
+    _fn = _load_module("fundamentals")
 
     get_cik                  = _ef.get_cik
     get_recent_filings       = _ef.get_recent_filings
@@ -77,6 +81,7 @@ except ImportError:
     format_dso_analysis      = _da.format_dso_analysis
 
     build_executive_summary  = _gr.build_executive_summary
+    run_fundamentals = _fn.run_fundamentals
 
 
 DEFAULT_OUTPUT_DIR = "/media/SHARED/trade-data/sec-analysis"
@@ -159,6 +164,7 @@ def run_full(ticker: str, days: int = 90, quarters: int = 8) -> str:
     red_flag_md, flags = run_red_flags(ticker)
     insider_md, insider_result = run_insider(ticker, days=days)
     dso_md, dso_result = run_dso(ticker, quarters=quarters)
+    f_md , f_res  = run_fundamentals(ticker)
 
     # Build key findings for executive summary
     key_findings = []
@@ -207,6 +213,8 @@ def run_full(ticker: str, days: int = 90, quarters: int = 8) -> str:
         f"## Insider Activity\n\n{insider_md}\n\n"
         f"---\n\n"
         f"## DSO / Revenue Quality\n\n{dso_md}\n"
+        f"---\n\n"
+        f"## Fundamental Analysis\n\n{f_md}\n"
     )
     return full_report
 
@@ -244,7 +252,7 @@ Examples:
                         help="Stock ticker (e.g. NVDA)")
     parser.add_argument(
         "--analysis",
-        choices=["red_flags", "insider", "dso", "full"],
+        choices=["red_flags", "insider", "dso", "fundamentals", "full"],
         default="full",
         help="Analysis type (default: full)",
     )
@@ -275,6 +283,8 @@ Examples:
         report, _ = run_insider(ticker, days=args.days)
     elif args.analysis == "dso":
         report, _ = run_dso(ticker, quarters=args.quarters)
+    elif args.analysis == "fundamentals":
+        report, _ = run_fundamentals(ticker)
     else:  # full
         report = run_full(ticker, days=args.days, quarters=args.quarters)
 

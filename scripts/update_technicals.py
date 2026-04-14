@@ -12,7 +12,7 @@ Two modes:
 
 Usage:
     python3 scripts/update_technicals.py --mode init
-    python3 scripts/update_technicals.py --mode daily
+    - Run all steps of the pipeline
     python3 scripts/update_technicals.py --mode daily --tickers TSEM OKLO ASTS
     python3 scripts/update_technicals.py --mode scan
 """
@@ -52,6 +52,16 @@ DOW_30 = [
 
 # Always include these ETFs as benchmarks / for RS computation
 BENCHMARKS = ["SPY", "QQQ", "DIA", "IWM"]
+
+# Hedge / commodity / macro ETFs — always in universe for macro hedge allocation
+HEDGE_ETFS = [
+    "GLD", "SLV", "TLT", "IEF",   # Gold, Silver, Long-term bonds, Intermediate bonds
+    "UUP", "USO", "XLE", "XLF",   # Dollar, Oil, Energy sector, Financials sector
+    "XLV", "XLK", "XLI", "XLU",   # Healthcare, Tech, Industrials, Utilities
+    "XLP", "XLY", "XLB", "XLRE",  # Staples, Discretionary, Materials, Real Estate
+    "XLC",                          # Communication Services
+    "VXX",                          # Volatility (VIX futures)
+]
 
 
 # ─────────────────────────────────────────────────────────────
@@ -104,7 +114,7 @@ def build_universe(extra_tickers: list[str]) -> list[str]:
     """Combine SP500 + DOW30 + Russell2000 + benchmarks + any extra tickers, deduplicated."""
     sp500 = get_sp500_tickers()
     r2000 = get_russell2000_tickers()
-    universe = set(sp500) | set(r2000) | set(DOW_30) | set(BENCHMARKS) | set(extra_tickers)
+    universe = set(sp500) | set(r2000) | set(DOW_30) | set(BENCHMARKS) | set(HEDGE_ETFS) | set(extra_tickers)
     result = sorted(universe)
     print(f"  Universe: {len(result)} unique tickers (SP500={len(sp500)}, R2000={len(r2000)}, DOW30={len(DOW_30)}, extras={len(extra_tickers)})")
     return result
@@ -680,6 +690,25 @@ def run_daily(engine, extra_tickers: list[str]):
         if t:
             all_ta.append(t[-1])
 
+    # ── Partial-data guard ────────────────────────────────────────
+    # yfinance sometimes returns data for only a handful of tickers
+    # (network hiccup, rate-limit, market not yet closed).
+    # If we wrote those rows, the Minervini screener would silently
+    # use a date with <1% coverage instead of the previous full day.
+    # Threshold: require at least 10% of the expected universe.
+    MIN_COVERAGE = max(100, int(len(tickers) * 0.10))
+    if len(all_ta) < MIN_COVERAGE:
+        print(
+            f"[DAILY] PARTIAL DATA DETECTED: only {len(all_ta)} tickers fetched "
+            f"(expected >= {MIN_COVERAGE} of {len(tickers)} universe tickers)."
+        )
+        print(
+            "[DAILY] Skipping write to ohlc_daily/ta_daily to preserve yesterday's "
+            "full dataset. Re-run after market close or use --mode init to rebuild."
+        )
+        print("[DAILY] NEXT RUN: this step will be retried automatically next session.")
+        return
+
     write_ohlc(all_ohlc, engine, replace=False)
     write_ta(all_ta, engine, replace=False)
     print(f"[DAILY] Done. {len(all_ta)} tickers updated.")
@@ -741,6 +770,36 @@ def run_scanners():
                   AND rvol > 1.2
                   AND close_range_pct >= 0.5
                 ORDER BY rvol DESC LIMIT 10;
+            """,
+        "💎 6. Quality at Discount (Dip-Buy Candidates)": """
+                SELECT ticker, close,
+                       ROUND(dist_from_52w_high_pct::numeric, 1) as pct_from_high,
+                       ROUND(dist_from_50_pct::numeric, 1) as dist_50,
+                       ROUND(rsi::numeric, 1) as rsi,
+                       ROUND(rvol::numeric, 2) as rvol,
+                       sma200_is_rising
+                FROM ta_daily
+                WHERE date = (SELECT MAX(date) FROM ta_daily)
+                  AND close < sma50               -- Below 50-day MA (in pullback)
+                  AND close > sma200              -- Still above 200-day MA (not broken)
+                  AND sma200_is_rising = TRUE     -- Long-term uptrend intact
+                  AND dist_from_52w_high_pct BETWEEN -25 AND -8  -- 8-25% off highs
+                  AND rsi BETWEEN 30 AND 45       -- Oversold but not capitulating
+                ORDER BY dist_from_52w_high_pct ASC LIMIT 15;
+            """,
+        "🔄 7. Mean Reversion Setup (Stretched Below MAs)": """
+                SELECT ticker, close,
+                       ROUND(dist_from_50_pct::numeric, 1) as dist_50,
+                       ROUND(rsi::numeric, 1) as rsi,
+                       bb_position,
+                       ROUND(close_range_pct::numeric, 2) as close_rng
+                FROM ta_daily
+                WHERE date = (SELECT MAX(date) FROM ta_daily)
+                  AND close < bb_lower            -- Below lower Bollinger Band
+                  AND sma200_is_rising = TRUE     -- Long-term trend still up
+                  AND rsi < 35                    -- Oversold
+                  AND close_range_pct > 0.5       -- Closing in upper half of day's range (reversal candle)
+                ORDER BY rsi ASC LIMIT 10;
             """
     }
 
@@ -763,6 +822,29 @@ def run_scanners():
 # CLI
 # ─────────────────────────────────────────────────────────────
 
+def drop_partial_date(engine, date_str: str):
+    """Delete all ohlc_daily + ta_daily rows for a given date (YYYY-MM-DD).
+
+    Use this to clean up a partial/broken daily run before retrying:
+        python3 scripts/update_technicals.py --drop-partial 2026-04-07
+    """
+    from datetime import date as dt_date
+    try:
+        target = dt_date.fromisoformat(date_str)
+    except ValueError:
+        print(f"[DROP-PARTIAL] Invalid date '{date_str}'. Use YYYY-MM-DD format.")
+        return
+
+    with engine.begin() as conn:
+        r1 = conn.execute(text("DELETE FROM ohlc_daily WHERE date::date = :d"), {"d": target})
+        r2 = conn.execute(text("DELETE FROM ta_daily WHERE date::date = :d"), {"d": target})
+    print(
+        f"[DROP-PARTIAL] Removed {r1.rowcount} ohlc_daily rows and "
+        f"{r2.rowcount} ta_daily rows for {target}."
+    )
+    print("[DROP-PARTIAL] You can now re-run: python3 scripts/update_technicals.py --mode daily")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Update OHLC + technicals in PostgreSQL via yfinance")
     parser.add_argument(
@@ -778,10 +860,21 @@ def main():
         metavar="TICKER",
         help="Additional tickers to include beyond SP500+DOW30+benchmarks",
     )
+    parser.add_argument(
+        "--drop-partial",
+        metavar="DATE",
+        default=None,
+        help="Delete all ohlc_daily/ta_daily rows for DATE (YYYY-MM-DD) then exit. "
+             "Use to clean up a partial run before retrying.",
+    )
     args = parser.parse_args()
 
     engine = create_engine(PG_CONN_STR)
     print(f"[update_technicals] mode={args.mode}, extra_tickers={args.tickers or 'none'}")
+
+    if args.drop_partial:
+        drop_partial_date(engine, args.drop_partial)
+        return
 
     if args.mode == "init":
         run_init(engine, args.tickers)

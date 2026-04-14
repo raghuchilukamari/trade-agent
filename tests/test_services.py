@@ -110,38 +110,16 @@ class TestOPEXCalendar:
         assert vix == date(2026, 1, 14)
 
 
-class TestWatchlist:
-    def test_jp_morgan_mark(self):
-        from app.services.watchlist import get_ticker_marks
-        marks = get_ticker_marks("NVDA")
-        assert "⭐" in marks  # JP Morgan
-        assert "🔥" in marks  # Strong Buy
-
-    def test_ibd_mark(self):
-        from app.services.watchlist import get_ticker_marks
-        marks = get_ticker_marks("PLTR")
-        assert "📈" in marks
-
-    def test_no_marks(self):
-        from app.services.watchlist import get_ticker_marks
-        marks = get_ticker_marks("ZZZZZ")
-        assert marks == []
-
-    def test_goog_alias(self):
-        from app.services.watchlist import get_ticker_marks
-        marks = get_ticker_marks("GOOG")
-        assert "⭐" in marks  # Should resolve to GOOGL
-
 
 class TestFlowParser:
     def test_normalize_symbol(self):
-        from app.services.flow_parser import normalize_symbol
+        from app.services.flow_parser_v0 import normalize_symbol
         assert normalize_symbol("GOOG") == "GOOGL"
         assert normalize_symbol("BRK.A") == "BRK.B"
         assert normalize_symbol("NVDA") == "NVDA"
 
     def test_parse_tickers(self):
-        from app.services.flow_parser import _parse_tickers
+        from app.services.flow_parser_v0 import _parse_tickers
         result = _parse_tickers("$NVDA, $AMD, $GOOG")
         assert "NVDA" in result
         assert "AMD" in result
