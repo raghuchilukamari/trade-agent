@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRWV — CoreWeave Equity Research | April 9, 2026</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  .header { background: linear-gradient(135deg, #1a2744 0%, #0d2137 100%); border: 1px solid #2d4a7a; border-radius: 12px; padding: 28px 32px; margin-bottom: 24px; }
+  .header h1 { margin: 0 0 8px 0; font-size: 2em; color: #58a6ff; }
+  .header .sub { color: #8b949e; font-size: 0.95em; }
+  .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 700; margin: 4px 4px 0 0; }
+  .badge-buy { background: #1a472a; color: #3fb950; border: 1px solid #3fb950; }
+  .badge-hold { background: #2d2a00; color: #d29922; border: 1px solid #d29922; }
+  .badge-spec { background: #2d1a00; color: #f78166; border: 1px solid #f78166; }
+  .badge-high-risk { background: #4a1515; color: #ff7b72; border: 1px solid #ff7b72; }
+  .badge-flow { background: #1a3a1a; color: #56d364; border: 1px solid #56d364; }
+  .badge-bear { background: #4a1515; color: #ff7b72; border: 1px solid #ff7b72; }
+  .section { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 24px; margin-bottom: 20px; }
+  .section h2 { margin: 0 0 18px 0; font-size: 1.15em; color: #58a6ff; border-bottom: 1px solid #21262d; padding-bottom: 10px; }
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .metric { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 14px; }
+  .metric-label { font-size: 0.75em; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .metric-value { font-size: 1.3em; font-weight: 700; color: #e6edf3; }
+  .metric-value.green { color: #3fb950; }
+  .metric-value.red { color: #ff7b72; }
+  .metric-value.yellow { color: #d29922; }
+  .metric-note { font-size: 0.75em; color: #8b949e; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+  th { background: #21262d; color: #8b949e; padding: 10px 12px; text-align: left; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 9px 12px; border-bottom: 1px solid #21262d; color: #e6edf3; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1c2128; }
+  .bull { color: #3fb950; font-weight: 600; }
+  .bear { color: #ff7b72; font-weight: 600; }
+  .neutral { color: #d29922; }
+  .verdict-box { background: #1a2744; border: 2px solid #2d4a7a; border-radius: 10px; padding: 20px; margin-top: 16px; }
+  .verdict-box.bullish { border-color: #3fb950; background: #0d2a0d; }
+  .verdict-box.bearish { border-color: #ff7b72; background: #2a0d0d; }
+  .verdict-box.neutral { border-color: #d29922; background: #2a220d; }
+  .verdict-box h3 { margin: 0 0 10px 0; font-size: 1em; }
+  .bullet-list { list-style: none; padding: 0; margin: 0; }
+  .bullet-list li { padding: 6px 0 6px 20px; position: relative; border-bottom: 1px solid #21262d; }
+  .bullet-list li:last-child { border-bottom: none; }
+  .bullet-list li::before { content: "▶"; position: absolute; left: 0; color: #58a6ff; font-size: 0.7em; top: 9px; }
+  .bull-list li::before { color: #3fb950; }
+  .bear-list li::before { color: #ff7b72; }
+  .tag { display: inline-block; background: #21262d; color: #8b949e; border-radius: 4px; padding: 2px 8px; font-size: 0.75em; margin: 2px; }
+  .tag.red { background: #3d1515; color: #ff7b72; }
+  .tag.green { background: #0d2a0d; color: #3fb950; }
+  .summary-table td:first-child { color: #8b949e; font-size: 0.85em; width: 180px; }
+  .flow-signal { background: #0d2a0d; border: 1px solid #3fb950; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; }
+  .flow-signal .label { color: #3fb950; font-weight: 700; font-size: 0.85em; text-transform: uppercase; margin-bottom: 6px; }
+  .risk-bar { height: 8px; border-radius: 4px; background: #21262d; margin-top: 6px; overflow: hidden; }
+  .risk-fill { height: 100%; border-radius: 4px; }
+  .warning-box { background: #2d1a00; border: 1px solid #f78166; border-radius: 8px; padding: 14px 18px; margin: 10px 0; }
+  .warning-box .label { color: #f78166; font-weight: 700; font-size: 0.85em; margin-bottom: 6px; }
+  .footer { text-align: center; color: #484f58; font-size: 0.8em; margin-top: 24px; padding-top: 16px; border-top: 1px solid #21262d; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>CoreWeave (CRWV)</h1>
+  <div class="sub">AI Cloud Infrastructure &nbsp;|&nbsp; Equity Research &nbsp;|&nbsp; April 9, 2026</div>
+  <div style="margin-top:14px;">
+    <span class="badge badge-spec">SPEC BUY (Aggressive)</span>
+    <span class="badge badge-high-risk">HIGH RISK</span>
+    <span class="badge badge-flow">4-CH FLOW: $14.18M 100% BULL</span>
+    <span class="badge" style="background:#1a2744;color:#58a6ff;border:1px solid #58a6ff;">CATALYST: $21B Meta Deal</span>
+    <span class="badge" style="background:#21262d;color:#8b949e;border:1px solid #30363d;">MAY 13 EARNINGS</span>
+  </div>
+</div>
+
+<!-- Flow Signal -->
+<div class="flow-signal">
+  <div class="label">Today's Options Flow Signal — April 9, 2026</div>
+  <strong>$14.18M premium | 3-channel | 100% BULLISH</strong> — Institutional buying post-$21B Meta deal announcement. Corroborating NBIS ($8.46M, 4-channel) as AI infra theme broadens.
+</div>
+
+<!-- Section 1: Fundamentals -->
+<div class="section">
+  <h2>Section 1: Fundamental Analysis</h2>
+
+  <div class="metrics-grid">
+    <div class="metric">
+      <div class="metric-label">Revenue (FY2025)</div>
+      <div class="metric-value green">$5.13B</div>
+      <div class="metric-note">+168% YoY from $1.92B</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">2026 Revenue Guide</div>
+      <div class="metric-value green">$12–13B</div>
+      <div class="metric-note">+134–153% growth</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Q4 2025 Revenue</div>
+      <div class="metric-value">$1.572B</div>
+      <div class="metric-note">+15.2% sequential from Q3</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Gross Margin</div>
+      <div class="metric-value green">71.7%</div>
+      <div class="metric-note">$3.68B gross profit</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Operating Margin</div>
+      <div class="metric-value yellow">-0.9%</div>
+      <div class="metric-note">-$46M op. loss — near breakeven</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Net Loss (FY2025)</div>
+      <div class="metric-value red">-$1.167B</div>
+      <div class="metric-note">Driven by interest + depreciation</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Operating Cash Flow</div>
+      <div class="metric-value green">$3.058B</div>
+      <div class="metric-note">59.6% OCF margin — outstanding</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Free Cash Flow</div>
+      <div class="metric-value red">-$7.2B</div>
+      <div class="metric-note">Capex: $10.3B investing outflows</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Long-term Debt</div>
+      <div class="metric-value red">$21.4B</div>
+      <div class="metric-note">+$4.25B new raise announced today</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Debt/Equity</div>
+      <div class="metric-value red">640%</div>
+      <div class="metric-note">$3.3B equity vs $45.9B liabilities</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Current Ratio</div>
+      <div class="metric-value red">0.46x</div>
+      <div class="metric-note">Current liabilities exceed assets</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Revenue Backlog</div>
+      <div class="metric-value green">$66B+</div>
+      <div class="metric-note">Multi-year contracted revenue</div>
+    </div>
+  </div>
+
+  <h3 style="color:#c9d1d9;font-size:0.95em;margin:18px 0 10px 0;">Valuation vs. Peers</h3>
+  <table>
+    <thead>
+      <tr><th>Company</th><th>Market Cap</th><th>Revenue Growth</th><th>CY27 EV/Sales</th><th>Gross Margin</th><th>OCF Margin</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>CRWV</strong> <span class="tag green">Our Pick</span></td>
+        <td>$46.7B</td>
+        <td class="bull">+168% (FY25) → +134%+ guide</td>
+        <td class="bull">2.5x <span style="font-size:0.8em;color:#3fb950">(DISCOUNT vs peers)</span></td>
+        <td>71.7%</td>
+        <td class="bull">59.6%</td>
+      </tr>
+      <tr>
+        <td>NBIS (Nebius)</td>
+        <td>~$10B</td>
+        <td class="bull">~200%+</td>
+        <td>~4x</td>
+        <td>~65%</td>
+        <td>N/A</td>
+      </tr>
+      <tr>
+        <td>AWS / Azure / GCP</td>
+        <td>Integrated</td>
+        <td>~15-20%</td>
+        <td>6.5x avg</td>
+        <td>~60-70%</td>
+        <td>40%+</td>
+      </tr>
+      <tr>
+        <td>Lambda Labs / Crusoe</td>
+        <td>Private</td>
+        <td>High</td>
+        <td>N/A</td>
+        <td>~60%</td>
+        <td>N/A</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="color:#8b949e;font-size:0.82em;margin-top:8px;">CRWV trades at 2.5x CY27 EV/Sales vs. sector peer average of 6.5x — a 62% discount despite superior growth. Market appears to be pricing in execution/debt risk, not growth potential.</p>
+
+  <h3 style="color:#c9d1d9;font-size:0.95em;margin:18px 0 10px 0;">Analyst Consensus</h3>
+  <table>
+    <thead>
+      <tr><th>Consensus</th><th>Buy</th><th>Hold</th><th>Sell</th><th>Avg PT</th><th>Low PT</th><th>High PT</th><th>vs Current ($87.80)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong class="bull">BUY</strong></td>
+        <td class="bull">21</td>
+        <td>10</td>
+        <td>2</td>
+        <td>$120–124</td>
+        <td>$41</td>
+        <td>$251</td>
+        <td class="bull">+37–41% upside</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warning-box" style="margin-top:16px;">
+    <div class="label">⚠ Insider Activity — Red Flag</div>
+    Executives sold $2.5B+ in stock in Q4 2025 via 10b5-1 plans. Top executives offloaded $111.6M via scheduled plans. While pre-planned, the scale of insider selling is notable and merits caution. Customer concentration: Microsoft was >50% of revenue — now <35% after Meta deal.
+  </div>
+</div>
+
+<!-- Section 2: Thesis -->
+<div class="section">
+  <h2>Section 2: Thesis Validation</h2>
+
+  <h3 style="color:#3fb950;font-size:0.9em;margin:0 0 10px 0;">BULL CASE</h3>
+  <ul class="bullet-list bull-list">
+    <li><strong>$66B+ backlog at 2.5x CY27 EV/Sales = significant valuation gap.</strong> With $66B in contracted backlog and peers trading at 6.5x EV/Sales, CRWV has a clear path to multiple re-rating as revenue execution de-risks the story. The $21B Meta deal (total $35.2B committed across Meta + OpenAI) alone represents ~6.8x FY2025 revenue — visibility is exceptional.</li>
+    <li><strong>59.6% operating cash flow margin is the real story.</strong> The net loss of -$1.2B is misleading — $3.06B in operating cash flow on $5.1B revenue demonstrates the underlying business economics are excellent. Once capex normalizes as infrastructure buildout peaks, FCF generation could be substantial.</li>
+    <li><strong>Customer diversification inflection point.</strong> Microsoft was >50% of revenue — a single-customer concentration risk. With the $21B Meta deal, no customer will represent more than 35% of revenue. This diversification reduces existential customer risk and makes the thesis more durable.</li>
+  </ul>
+
+  <h3 style="color:#ff7b72;font-size:0.9em;margin:16px 0 10px 0;">BEAR CASE</h3>
+  <ul class="bullet-list bear-list">
+    <li><strong>Balance sheet is a structural risk at current rates.</strong> $21.4B in long-term debt (rising to ~$25.6B post new raise) with a current ratio of 0.46 is alarming. Interest coverage is ~0.2x EBIT — the company is paying interest it has not earned operationally. If rates stay elevated or a key customer delays payments, liquidity could deteriorate rapidly. The $4.25B new debt raise adds $400-500M in annual interest burden.</li>
+    <li><strong>$2.5B insider selling creates a structural overhang.</strong> Executive sales of this scale signal insiders believe the stock is fairly valued or overvalued near-term. With the IPO lockup expired and 10b5-1 plans pre-scheduled, selling pressure is structural. This limits upside from short-term price appreciation and creates negative sentiment signals.</li>
+  </ul>
+
+  <div class="verdict-box neutral">
+    <h3>Verdict: SPECULATIVE BUY — Small Starter Position Only</h3>
+    CoreWeave is one of the most compelling AI infrastructure stories of 2026, with exceptional operating cash flow, a 71.7% gross margin, and a revenue backlog that provides multi-year visibility. The $21B Meta deal today is a genuine catalyst that de-risks the customer concentration concern. However, the 640% D/E ratio, 0.46 current ratio, and massive insider selling conflict directly with Raghu's capital preservation philosophy. Given the strong 3-channel flow signal at 100% bullish today, a small starter position (10-15%) is justified — but this is not a full-size conviction position. It is a high-risk, high-reward momentum trade validated by institutional flow, not a conservative core holding.
+  </div>
+</div>
+
+<!-- Section 3: Sector & Macro -->
+<div class="section">
+  <h2>Section 3: Sector & Macro View</h2>
+
+  <h3 style="color:#c9d1d9;font-size:0.95em;margin:0 0 10px 0;">AI Cloud Infrastructure — Sector Overview</h3>
+  <p>The global AI infrastructure market ($87.6B in 2025) is growing at 17.7% CAGR toward $197B by 2030. Within this, specialized GPU cloud (CoreWeave's niche) is growing exponentially as hyperscalers compete for NVIDIA H100/H200/Blackwell capacity that they cannot build fast enough internally. The demand side is structural: Meta, OpenAI, Google, Microsoft, and hundreds of AI startups need more GPU compute than AWS/Azure/GCP can supply. This creates a clear TAM for GPU-as-a-service specialists.</p>
+
+  <h3 style="color:#c9d1d9;font-size:0.95em;margin:14px 0 10px 0;">Macro Regime (April 9, 2026)</h3>
+  <table class="summary-table">
+    <tbody>
+      <tr><td>Fed Stance</td><td>Hawkish — 7/18 members see no 2026 cuts; rate hike risk</td></tr>
+      <tr><td>CPI (Apr 10 tomorrow)</td><td>Est. +3.1% — hot print = multiple compression risk for high-growth names</td></tr>
+      <tr><td>Rate Impact on CRWV</td><td>DIRECT NEGATIVE: $21.4B debt at avg ~11% = ~$2.35B annual interest. Higher rates make refinancing more expensive.</td></tr>
+      <tr><td>Iran Ceasefire</td><td>S&P +0.62% to 6,824 — 7th straight up day. Risk-on environment supportive of momentum plays.</td></tr>
+      <tr><td>Gold ATH</td><td>$4,742/oz — uncertainty/inflation hedge flows may limit risk appetite</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="color:#c9d1d9;font-size:0.95em;margin:14px 0 10px 0;">Competitive Position</h3>
+  <p>CoreWeave occupies a unique position as the largest pure-play GPU cloud provider. Big Three (AWS/Azure/GCP) hold 62%+ of total cloud but cannot match CoreWeave's GPU density or delivery speed for AI workloads. Direct pure-play competitors (Lambda Labs, Crusoe, RunPod) are private and far smaller. Nebius (NBIS) is the closest public comparable — also with a Meta deal ($27B) and growing rapidly, but CRWV has 3-4x the scale. CoreWeave's differentiation: NVIDIA partnerships (first access to new GPU generations), investment-grade financing (A3/A-low rated GPU-backed debt — first in history), and $35.2B in committed enterprise backlog.</p>
+</div>
+
+<!-- Section 4: Catalysts -->
+<div class="section">
+  <h2>Section 4: Catalyst Watch</h2>
+  <table>
+    <thead>
+      <tr><th>Timeframe</th><th>Catalyst</th><th>Expected Date</th><th>Significance</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag green">NOW</span></td>
+        <td>$21B Meta AI Cloud Deal Announced</td>
+        <td>April 9, 2026</td>
+        <td class="bull">Highest — total committed now $35.2B. Customer concentration resolved.</td>
+      </tr>
+      <tr>
+        <td><span class="tag green">NOW</span></td>
+        <td>$4.25B Debt Raise (Senior Notes + Convertibles)</td>
+        <td>April 9, 2026</td>
+        <td class="neutral">Liquidity positive, but raises interest burden</td>
+      </tr>
+      <tr>
+        <td><span class="tag">0–3M</span></td>
+        <td>Q1 2026 Earnings</td>
+        <td>~May 13, 2026 (est.)</td>
+        <td class="bull">High — first quarter post-IPO with full Meta ramp. Revenue est. $1.96B. Beat/miss will set 2026 tone.</td>
+      </tr>
+      <tr>
+        <td><span class="tag">0–3M</span></td>
+        <td>CPI Data April 10, 2026</td>
+        <td>Tomorrow</td>
+        <td class="bear">Risk — Hot print could trigger rate-hike fears, pressuring leveraged high-growth names like CRWV</td>
+      </tr>
+      <tr>
+        <td><span class="tag">0–3M</span></td>
+        <td>NVIDIA Vera Rubin GPU Platform Deploy</td>
+        <td>Q2 2026</td>
+        <td class="bull">High — Meta deal includes initial Vera Rubin deployments. First mover advantage on next-gen compute.</td>
+      </tr>
+      <tr>
+        <td><span class="tag">3–12M</span></td>
+        <td>Revenue Path to $12-13B 2026 Guide</td>
+        <td>Q2–Q4 2026</td>
+        <td class="bull">High — Q-by-Q execution will drive valuation re-rating from 2.5x to peer 6.5x EV/Sales</td>
+      </tr>
+      <tr>
+        <td><span class="tag">3–12M</span></td>
+        <td>Additional Enterprise Contracts</td>
+        <td>Ongoing</td>
+        <td>Medium — backlog of $66B+ but concentration still important</td>
+      </tr>
+      <tr>
+        <td><span class="tag">1–3Y</span></td>
+        <td>FCF Inflection as Capex Normalizes</td>
+        <td>2027–2028</td>
+        <td class="bull">Highest long-term — if capex growth slows, $3B+ OCF converts to positive FCF</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Section 5: Summary -->
+<div class="section">
+  <h2>Section 5: Investment Summary</h2>
+
+  <ul class="bullet-list" style="margin-bottom:18px;">
+    <li><strong>Revenue visibility is exceptional:</strong> $66B+ contracted backlog and $35.2B in committed Meta + OpenAI spend covers 6+ years of 2025 revenue — the growth story is not speculative, it is contracted.</li>
+    <li><strong>Operating economics are strong despite net losses:</strong> 71.7% gross margin and 59.6% OCF margin demonstrate a fundamentally sound business; net losses reflect accelerated depreciation and interest on growth infrastructure, not operational failure.</li>
+    <li><strong>Today's $21B Meta deal is a genuine de-risking event:</strong> Reduces Microsoft customer concentration from >50% to <35% and extends revenue visibility through 2032 on the NVIDIA Vera Rubin platform.</li>
+    <li><strong>Valuation is a rare discount in AI space:</strong> 2.5x CY27 EV/Sales vs. peer average 6.5x — 62% discount with superior revenue growth. As execution risk decreases, multiple expansion is a high-probability re-rating catalyst.</li>
+    <li><strong>Balance sheet is the key risk to manage:</strong> $21.4B+ debt, 0.46 current ratio, and $2.5B insider selling demand position sizing discipline — this is a momentum/catalyst trade, not a core conservative holding.</li>
+  </ul>
+
+  <table class="summary-table">
+    <tbody>
+      <tr><td>Recommendation</td><td><strong class="neutral">SPEC BUY — 10–15% position max</strong></td></tr>
+      <tr><td>Confidence Level</td><td>Medium (flow signal strong; balance sheet risk limits conviction)</td></tr>
+      <tr><td>Expected Timeframe</td><td>3–6 months (Meta deal catalyst + May 13 earnings)</td></tr>
+      <tr><td>Risk Rating</td><td><span class="bear">HIGH</span> — probability of >20% drawdown elevated. CPI tomorrow is near-term risk.</td></tr>
+      <tr><td>Stop Loss</td><td>~$75 (-15% from current $87.80) — below key technical support</td></tr>
+      <tr><td>Price Target (3–6M)</td><td>$105–120 (analyst consensus range, multiple expansion on execution)</td></tr>
+      <tr><td>Key Monitor</td><td>May 13 Q1 earnings — revenue vs $1.96B est. + 2026 guide reiteration</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warning-box" style="margin-top:16px;">
+    <div class="label">Position Sizing Note — Raghu's Capital Preservation Philosophy</div>
+    CRWV fails the conservative balance sheet test (D/E 640%, current ratio 0.46, massive insider selling). This is NOT a core holding — it is a catalyst-driven momentum trade backed by exceptional institutional flow (3-channel, $14.18M, 100% bullish). Size accordingly: 10–15% max, tight stop at $75. Exit fully if CPI tomorrow triggers a broad rate-hike repricing.
+  </div>
+</div>
+
+<div class="footer">
+  Generated: April 9, 2026 &nbsp;|&nbsp; Sources: SEC EDGAR (CRWV 10-K FY2025), Polygon Financials, MarketBeat, StockAnalysis, 247WallSt, Motley Fool, CNBC, Benzinga, CoreWeave IR &nbsp;|&nbsp; Flow data: Internal flow_aggregator.py
+</div>
+
+</div>
+</body>
+</html>

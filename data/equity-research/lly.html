@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLY — Eli Lilly Equity Research | April 8, 2026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; line-height: 1.6; }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+  .header { border-bottom: 2px solid #3b82f6; padding-bottom: 24px; margin-bottom: 32px; }
+  .ticker { font-size: 42px; font-weight: 800; color: #60a5fa; letter-spacing: -1px; }
+  .company { font-size: 20px; color: #94a3b8; margin-top: 4px; }
+  .meta { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
+  .badge { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+  .badge-buy { background: #064e3b; color: #34d399; border: 1px solid #34d399; }
+  .badge-high { background: #1e3a5f; color: #60a5fa; border: 1px solid #60a5fa; }
+  .badge-medium-risk { background: #451a03; color: #fb923c; border: 1px solid #fb923c; }
+  .badge-signal { background: #2d1b69; color: #a78bfa; border: 1px solid #a78bfa; }
+  .alert-box { background: #1e3a5f; border: 1px solid #3b82f6; border-left: 4px solid #3b82f6; padding: 16px 20px; border-radius: 8px; margin-bottom: 28px; }
+  .alert-box .alert-title { font-weight: 700; color: #93c5fd; font-size: 15px; margin-bottom: 6px; }
+  .alert-box p { color: #bfdbfe; font-size: 14px; }
+  .section { margin-bottom: 36px; }
+  .section-title { font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 8px; }
+  .section-title .num { background: #3b82f6; color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .metric-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px 16px; }
+  .metric-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .metric-value { font-size: 22px; font-weight: 700; color: #f1f5f9; }
+  .metric-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+  .metric-up { color: #34d399; }
+  .metric-down { color: #f87171; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+  th { background: #1e293b; color: #94a3b8; text-align: left; padding: 10px 12px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1e293b; color: #e2e8f0; }
+  tr:hover td { background: #1a2332; }
+  .bull { color: #34d399; font-weight: 600; }
+  .bear { color: #f87171; font-weight: 600; }
+  .neutral { color: #94a3b8; }
+  .thesis-list { list-style: none; padding: 0; }
+  .thesis-list li { padding: 10px 0 10px 28px; position: relative; border-bottom: 1px solid #1e293b; font-size: 14px; color: #cbd5e1; }
+  .thesis-list li:last-child { border-bottom: none; }
+  .thesis-list li::before { content: "▶"; position: absolute; left: 0; color: #3b82f6; font-size: 10px; top: 13px; }
+  .argument { background: #1e293b; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .argument .arg-title { font-weight: 700; margin-bottom: 8px; font-size: 14px; }
+  .bull-arg .arg-title { color: #34d399; }
+  .bear-arg .arg-title { color: #f87171; }
+  .argument p { font-size: 13px; color: #94a3b8; line-height: 1.7; }
+  .verdict-box { background: #0f2b1b; border: 1px solid #34d399; border-radius: 8px; padding: 20px; margin-top: 16px; }
+  .verdict-box .verdict-title { color: #34d399; font-weight: 700; font-size: 16px; margin-bottom: 8px; }
+  .verdict-box p { color: #a7f3d0; font-size: 14px; line-height: 1.7; }
+  .catalyst-item { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid #1e293b; align-items: flex-start; }
+  .catalyst-item:last-child { border-bottom: none; }
+  .catalyst-date { min-width: 120px; font-size: 12px; font-weight: 600; color: #60a5fa; }
+  .catalyst-text { font-size: 13px; color: #cbd5e1; }
+  .catalyst-text .impact { font-size: 12px; color: #f59e0b; margin-top: 3px; }
+  .summary-box { background: #1e293b; border-radius: 10px; padding: 24px; }
+  .summary-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .summary-stat { flex: 1; min-width: 120px; background: #0f1117; border-radius: 6px; padding: 12px 16px; text-align: center; }
+  .summary-stat .s-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .summary-stat .s-val { font-size: 16px; font-weight: 700; }
+  .s-buy { color: #34d399; }
+  .s-high-conf { color: #60a5fa; }
+  .s-medium-risk { color: #fb923c; }
+  .s-timeframe { color: #a78bfa; }
+  .flag { background: #451a03; border: 1px solid #fb923c; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #fed7aa; margin-top: 12px; }
+  .flag strong { color: #fb923c; }
+  .flow-highlight { background: #2d1b69; border: 1px solid #7c3aed; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; }
+  .flow-highlight .fh-title { color: #a78bfa; font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+  .flow-highlight p { color: #ddd6fe; font-size: 13px; }
+  .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #1e293b; font-size: 12px; color: #475569; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="ticker">LLY</div>
+    <div class="company">Eli Lilly and Company — Large-Cap Pharma / GLP-1 Obesity</div>
+    <div class="meta">
+      <span class="badge badge-buy">&#9650; BUY</span>
+      <span class="badge badge-high">Confidence: HIGH</span>
+      <span class="badge badge-medium-risk">Risk: MEDIUM</span>
+      <span class="badge badge-signal">4-Channel ★★ 100% Bull</span>
+    </div>
+  </div>
+
+  <div class="alert-box">
+    <div class="alert-title">&#128137; MAJOR CATALYST — FDA Approved Foundayo™ (orforglipron) on April 1, 2026</div>
+    <p>The only oral GLP-1 pill for weight loss that can be taken any time without food/water restrictions. Fastest NME approval since 2002. Priced at $299/month — directly competing with Novo Nordisk's Wegovy pill. This is the most significant pharma approval since Ozempic.</p>
+  </div>
+
+  <div class="flow-highlight">
+    <div class="fh-title">&#9889; TODAY'S OPTIONS FLOW SIGNAL (Apr 8, 2026)</div>
+    <p>LLY hit ALL 4 channels — the only ticker to do so today. $4.45M premium, 100% bullish. OPEX pin candidate for April 17 expiry. Smart money accumulating pre-Q1 earnings (Apr 30) and Foundayo launch momentum.</p>
+  </div>
+
+  <!-- SECTION 1 -->
+  <div class="section">
+    <div class="section-title"><span class="num">1</span> Fundamental Analysis</div>
+
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">TTM Revenue</div>
+        <div class="metric-value">$65.2B</div>
+        <div class="metric-sub metric-up">+44.7% YoY</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">3yr Revenue CAGR</div>
+        <div class="metric-value metric-up">+31.7%</div>
+        <div class="metric-sub">FY26 guidance $80-83B</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Op Margin</div>
+        <div class="metric-value">45.6%</div>
+        <div class="metric-sub metric-up">EXPANDING &#128200;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Net Margin</div>
+        <div class="metric-value">31.7%</div>
+        <div class="metric-sub metric-up">EXPANDING</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">TTM FCF</div>
+        <div class="metric-value">$5.96B</div>
+        <div class="metric-sub metric-down">FCF conv. 28.9% (capex)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Net Debt</div>
+        <div class="metric-value metric-down">-$35.2B</div>
+        <div class="metric-sub">Coverage: 46x &#10003;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">ROIC</div>
+        <div class="metric-value metric-up">34.0%</div>
+        <div class="metric-sub">ROE 77.8%</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Forward P/E</div>
+        <div class="metric-value">27x</div>
+        <div class="metric-sub">PEG 1.30 | Trailing 41x</div>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Metric</th><th>LLY</th><th>NVO</th><th>ABBV</th><th>BMY</th><th>JNJ</th></tr></thead>
+      <tbody>
+        <tr><td>Trailing P/E</td><td>41x</td><td>10x</td><td>97x</td><td>18x</td><td>21x</td></tr>
+        <tr><td>Forward P/E</td><td><strong>27x</strong></td><td>~9x</td><td>~16x</td><td>~10x</td><td>~16x</td></tr>
+        <tr><td>PEG Ratio</td><td><strong class="bull">1.30</strong></td><td>~0.7x</td><td>N/M</td><td>~2x</td><td>~2x</td></tr>
+        <tr><td>Revenue Growth YoY</td><td class="bull">+45%</td><td>+25%</td><td>+4%</td><td class="bear">-3%</td><td>+4%</td></tr>
+        <tr><td>Analyst Rating</td><td class="bull">Strong Buy</td><td>Buy</td><td>Buy</td><td>Hold</td><td>Hold</td></tr>
+        <tr><td>Mean Price Target</td><td>$1,201</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:13px;color:#94a3b8;margin-top:12px;"><strong style="color:#e2e8f0;">Analyst Consensus (44 analysts):</strong> Strong Buy. Mean PT $1,201 | Median $1,255 | High $1,500 | Low $870. Current ~$955 = <span class="bull">25–31% upside to mean/median.</span></p>
+    <p style="font-size:13px;color:#94a3b8;margin-top:8px;"><strong style="color:#e2e8f0;">Institutional:</strong> 82.5% institutional ownership. Perpetual Ltd boosted holdings Apr 8. Capital Research Global +20.9% in recent quarter.</p>
+
+    <div class="flag"><strong>&#9888; YELLOW FLAG:</strong> P/E 41.3x &gt; 22x (1/RFR) — equity risk premium thin at Fed Funds 4.25-4.50%. PEG 1.30 is mitigating factor.</div>
+  </div>
+
+  <!-- SECTION 2 -->
+  <div class="section">
+    <div class="section-title"><span class="num">2</span> Thesis Validation</div>
+
+    <div class="argument bull-arg">
+      <div class="arg-title">&#9650; BULL 1 — Foundayo is a Category-Defining Product</div>
+      <p>FDA approved April 1, 2026 — the only oral GLP-1 with zero food/water timing restrictions. This differentiates it critically from Novo's Wegovy pill (30-min fast required). At $299/month matching Novo's price, Lilly wins on convenience. 41% of Americans qualify; TAM is $100B+ by 2030. Wall Street models call Foundayo a "preferred oral GLP-1" with multi-billion dollar 2026 revenue. This is the most significant pharmaceutical approval since Ozempic.</p>
+    </div>
+    <div class="argument bull-arg">
+      <div class="arg-title">&#9650; BULL 2 — Three-Generation Pipeline Creates 5+ Year Runway</div>
+      <p>Tirzepatide (Zepbound/Mounjaro) is a mega-blockbuster already generating $10B+ annually. Orforglipron (Foundayo) just approved. Retatrutide Phase 3 data throughout 2026 targets up to 29% weight loss — potentially best-in-class. Plus diabetes orforglipron filing pending, cardiovascular / NASH / CKD label expansions, and Alzheimer's (donanemab) already approved. No competitor can replicate this pipeline depth within 3 years.</p>
+    </div>
+    <div class="argument bull-arg">
+      <div class="arg-title">&#9650; BULL 3 — Exceptional Fundamentals + Smart Money Accumulation</div>
+      <p>Revenue CAGR 31.7% over 3 years. Op margin 45.6% and expanding. ROIC 34%, ROE 78%. Interest coverage 46x on $35B net debt. FY2026 guidance of $80-83B implies another 25-30% growth year. Today's 4-channel institutional flow ($4.45M, 100% bullish) — only ticker hitting all 4 channels — signals pre-earnings accumulation before Q1 report on April 30.</p>
+    </div>
+    <div class="argument bear-arg">
+      <div class="arg-title">&#9660; BEAR 1 — Pricing & Rebate Pressure (IRA + PBMs)</div>
+      <p>The Inflation Reduction Act's drug price negotiation provisions could eventually target Zepbound/Mounjaro. PBM rebate demands already impacted Q4 2025 guidance (caused 18% drawdown). At $299/month for oral Foundayo directly competing with injectable Zepbound (~$1,000+/month), cannibalization dynamics are complex. Net price realizations could disappoint even with strong demand.</p>
+    </div>
+    <div class="argument bear-arg">
+      <div class="arg-title">&#9660; BEAR 2 — $35.2B Net Debt + FCF Squeeze</div>
+      <p>FCF conversion only 28.9% of net income — heavy capex in manufacturing scale-up. At Fed Funds 4.25-4.50%, interest costs are real ($700M+ annually). Any supply disruption to GLP-1 manufacturing (which nearly happened in 2024-25) could crater revenue even with demand intact. P/E 41x at thin ERP is vulnerable to any negative surprise.</p>
+    </div>
+
+    <div class="verdict-box">
+      <div class="verdict-title">&#9654; VERDICT: BULLISH — BUY</div>
+      <p>The Foundayo FDA approval on April 1 is a transformational milestone that fundamentally re-rates Lilly's addressable market. At forward P/E 27x with 25%+ annual revenue growth, PEG 1.30 is defensible for a pharma with this pipeline depth. The 4-channel institutional accumulation today into April 17 OPEX and April 30 Q1 earnings creates a strong near-term catalyst stack. Primary risk is macro (thin ERP + FOMC hawkishness) and IRA pricing, not business quality.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="section">
+    <div class="section-title"><span class="num">3</span> Sector &amp; Macro View</div>
+
+    <table>
+      <thead><tr><th>Factor</th><th>Impact on LLY</th><th>Direction</th></tr></thead>
+      <tbody>
+        <tr><td>GLP-1 Oral Market (Foundayo)</td><td>Opens ~60% of obese patients who refuse injections</td><td class="bull">Strongly Positive</td></tr>
+        <tr><td>Iran Ceasefire (Apr 8)</td><td>Risk-on rally; capital rotates from energy to growth/healthcare</td><td class="bull">Positive</td></tr>
+        <tr><td>FOMC Hawkish Minutes (Apr 8)</td><td>7/18 members see no cuts in 2026; thin ERP at 41x P/E</td><td class="bear">Headwind</td></tr>
+        <tr><td>CPI Apr 10 (est +3.1%)</td><td>Hot print could reverse relief rally; pressure growth multiples</td><td class="bear">Watch</td></tr>
+        <tr><td>IRA Drug Pricing</td><td>Negotiation risk on Zepbound/Mounjaro in future cycles</td><td class="bear">Headwind</td></tr>
+        <tr><td>Tariff (50% weapons-to-Iran countries)</td><td>Minimal — Lilly manufactures in US/Europe</td><td class="neutral">Neutral</td></tr>
+        <tr><td>vs Novo Nordisk</td><td>Foundayo superior convenience wins oral pill market share</td><td class="bull">Positive</td></tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:13px;color:#94a3b8;margin-top:12px;"><strong style="color:#e2e8f0;">Competitive Moat:</strong> $27B+ in announced US manufacturing capex, deep IP portfolio, prescriber relationships, and brand recognition. No competitor can replicate the tirzepatide → orforglipron → retatrutide pipeline stack within 3 years.</p>
+  </div>
+
+  <!-- SECTION 4 -->
+  <div class="section">
+    <div class="section-title"><span class="num">4</span> Catalyst Watch</div>
+
+    <div class="catalyst-item">
+      <div class="catalyst-date">Apr 17, 2026</div>
+      <div class="catalyst-text">Monthly OPEX expiry — LLY noted as institutional pin candidate. Today's 4-channel flow confirms positioning. <div class="impact">Short-term tactical catalyst</div></div>
+    </div>
+    <div class="catalyst-item">
+      <div class="catalyst-date">Apr 30, 2026</div>
+      <div class="catalyst-text"><strong style="color:#60a5fa;">Q1 2026 Earnings (Before Market Open)</strong> — First report post-Foundayo approval. Consensus: $17.6B revenue, $7.33 EPS. Any Foundayo early demand data will be market-moving. <div class="impact">High-impact event — strong beat likely given Foundayo tailwind</div></div>
+    </div>
+    <div class="catalyst-item">
+      <div class="catalyst-date">Q2 2026</div>
+      <div class="catalyst-text">Foundayo commercial launch ramp — market share vs Novo's Wegovy pill critical. $299/month price point, no restrictions advantage. <div class="impact">Structural re-rating catalyst</div></div>
+    </div>
+    <div class="catalyst-item">
+      <div class="catalyst-date">Mid-2026</div>
+      <div class="catalyst-text">Orforglipron FDA filing for Type 2 Diabetes — second major indication; adds $10B+ TAM. EU/Japan Foundayo submissions also expected. <div class="impact">Positive — expands addressable market</div></div>
+    </div>
+    <div class="catalyst-item">
+      <div class="catalyst-date">Throughout 2026</div>
+      <div class="catalyst-text">Retatrutide Phase 3 readouts — up to 29% weight loss (potentially best-in-class); late-2026 FDA filing if data confirms. <div class="impact">High-impact if data confirms superiority</div></div>
+    </div>
+    <div class="catalyst-item">
+      <div class="catalyst-date">2026-2027</div>
+      <div class="catalyst-text">IRA negotiation watch — if Zepbound/Mounjaro selected for CMS price negotiation next cycle (effective 2027), net pricing headwind. <div class="impact">Downside risk — monitor regulatory calendar</div></div>
+    </div>
+  </div>
+
+  <!-- SECTION 5 -->
+  <div class="section">
+    <div class="section-title"><span class="num">5</span> Investment Summary</div>
+
+    <div class="summary-box">
+      <div class="summary-row">
+        <div class="summary-stat"><div class="s-label">Recommendation</div><div class="s-val s-buy">BUY</div></div>
+        <div class="summary-stat"><div class="s-label">Confidence</div><div class="s-val s-high-conf">HIGH</div></div>
+        <div class="summary-stat"><div class="s-label">Risk Rating</div><div class="s-val s-medium-risk">MEDIUM</div></div>
+        <div class="summary-stat"><div class="s-label">Timeframe</div><div class="s-val s-timeframe">6-12 mo</div></div>
+        <div class="summary-stat"><div class="s-label">Upside to Mean PT</div><div class="s-val s-buy">+26%</div></div>
+      </div>
+
+      <ul class="thesis-list">
+        <li>Foundayo FDA approval (Apr 1, 2026) unlocks the oral obesity market — a multi-hundred-billion TAM — with Lilly holding the most convenient dosing profile vs Novo (no food/water restrictions).</li>
+        <li>Three-generation GLP-1 pipeline (tirzepatide → orforglipron → retatrutide) creates a durable 5+ year growth runway with no credible rival able to close the gap within 3 years.</li>
+        <li>Revenue CAGR 31.7% over 3 years with expanding op margins (45.6%), ROIC 34%, and interest coverage 46x — fundamental quality is elite for large-cap pharma.</li>
+        <li>25-31% upside to consensus price targets ($1,201-$1,255 mean/median) with Q1 earnings April 30 as first Foundayo launch data catalyst; 4-channel institutional flow today at 100% bullish confirms accumulation.</li>
+        <li>Forward P/E 27x with PEG 1.30 is defensible for a company growing revenue 25%+ per year; primary risks are macro (FOMC hawkish, thin ERP) and IRA pricing, not business quality.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer">
+    Generated by Claude Code trading-agent | April 8, 2026 | Data: yfinance, MarketBeat, StockAnalysis, Lilly IR, Benzinga (plan limited) | Not financial advice
+  </div>
+
+</div>
+</body>
+</html>

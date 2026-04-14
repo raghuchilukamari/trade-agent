@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MU — Micron Technology Equity Research | April 9, 2026</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  .header { background: linear-gradient(135deg, #0d2a0d 0%, #0d1a2a 100%); border: 1px solid #3fb950; border-radius: 12px; padding: 28px 32px; margin-bottom: 24px; }
+  .header h1 { margin: 0 0 8px 0; font-size: 2em; color: #3fb950; }
+  .header .sub { color: #8b949e; font-size: 0.95em; }
+  .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 700; margin: 4px 4px 0 0; }
+  .badge-buy { background: #1a472a; color: #3fb950; border: 1px solid #3fb950; }
+  .badge-low { background: #1a3a1a; color: #56d364; border: 1px solid #56d364; }
+  .badge-flow { background: #1a3a1a; color: #56d364; border: 1px solid #56d364; }
+  .section { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 24px; margin-bottom: 20px; }
+  .section h2 { margin: 0 0 18px 0; font-size: 1.15em; color: #3fb950; border-bottom: 1px solid #21262d; padding-bottom: 10px; }
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .metric { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 14px; }
+  .metric-label { font-size: 0.75em; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .metric-value { font-size: 1.3em; font-weight: 700; color: #e6edf3; }
+  .metric-value.green { color: #3fb950; }
+  .metric-value.red { color: #ff7b72; }
+  .metric-value.yellow { color: #d29922; }
+  .metric-note { font-size: 0.75em; color: #8b949e; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+  th { background: #21262d; color: #8b949e; padding: 10px 12px; text-align: left; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 9px 12px; border-bottom: 1px solid #21262d; }
+  tr:last-child td { border-bottom: none; }
+  .bull { color: #3fb950; font-weight: 600; }
+  .bear { color: #ff7b72; font-weight: 600; }
+  .neutral { color: #d29922; }
+  .verdict-box { background: #0d2a0d; border: 2px solid #3fb950; border-radius: 10px; padding: 20px; margin-top: 16px; }
+  .verdict-box h3 { margin: 0 0 10px 0; color: #3fb950; }
+  .bullet-list { list-style: none; padding: 0; margin: 0; }
+  .bullet-list li { padding: 6px 0 6px 20px; position: relative; border-bottom: 1px solid #21262d; }
+  .bullet-list li:last-child { border-bottom: none; }
+  .bullet-list li::before { content: "▶"; position: absolute; left: 0; font-size: 0.7em; top: 9px; }
+  .bull-list li::before { color: #3fb950; }
+  .bear-list li::before { color: #ff7b72; }
+  .tag { display: inline-block; background: #21262d; color: #8b949e; border-radius: 4px; padding: 2px 8px; font-size: 0.75em; margin: 2px; }
+  .tag.green { background: #0d2a0d; color: #3fb950; }
+  .tag.red { background: #3d1515; color: #ff7b72; }
+  .flow-signal { background: #0d2a0d; border: 1px solid #3fb950; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; }
+  .flow-signal .label { color: #3fb950; font-weight: 700; font-size: 0.85em; text-transform: uppercase; margin-bottom: 6px; }
+  .summary-table td:first-child { color: #8b949e; font-size: 0.85em; width: 200px; }
+  .score-box { background: #0d2a0d; border: 2px solid #3fb950; border-radius: 8px; padding: 12px 18px; display: inline-block; margin-bottom: 16px; }
+  .score-box .score { font-size: 2em; font-weight: 700; color: #3fb950; }
+  .score-box .label { font-size: 0.8em; color: #8b949e; }
+  .upgrade-box { background: #0d2a0d; border: 1px solid #3fb950; border-radius: 8px; padding: 14px 18px; margin: 10px 0; }
+  .upgrade-box .label { color: #3fb950; font-weight: 700; font-size: 0.85em; margin-bottom: 6px; }
+  .footer { text-align: center; color: #484f58; font-size: 0.8em; margin-top: 24px; padding-top: 16px; border-top: 1px solid #21262d; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>Micron Technology (MU)</h1>
+  <div class="sub">Semiconductors / Memory / HBM &nbsp;|&nbsp; Equity Research &nbsp;|&nbsp; April 9, 2026</div>
+  <div style="margin-top:14px;">
+    <span class="badge badge-buy">STRONG BUY</span>
+    <span class="badge badge-low">LOW-MEDIUM RISK</span>
+    <span class="badge badge-flow">4-CH FLOW: $14.62M 81% BULL</span>
+    <span class="badge" style="background:#1a2744;color:#58a6ff;border:1px solid #58a6ff;">UPGRADED: WATCH → BUY</span>
+    <span class="badge" style="background:#2d2a00;color:#d29922;border:1px solid #d29922;">MINERVINI: 7/8 (near-miss day 3)</span>
+  </div>
+</div>
+
+<div class="flow-signal">
+  <div class="label">Today's Options Flow Signal — April 9, 2026 | DECISION: UPGRADE FROM WATCH</div>
+  <strong>$14.62M premium | ALL 4 CHANNELS | 81% BULLISH</strong> — First time MU hits all 4 channels. Previous 2 days: 3-channel at 6/8 Minervini (WATCH). Today: 4-channel + 7/8 Minervini + $14.62M = institutional conviction signal. Post-earnings washout accumulation thesis confirmed.
+</div>
+
+<div class="upgrade-box">
+  <div class="label">CONTEXT: Why MU Was on WATCH — and Why Today Changes It</div>
+  MU posted record Q2 2026 earnings (revenue $23.86B, +196% YoY; EPS $12.20 vs $8.60 est) on March 18 but shares <strong>crashed 30%</strong> post-earnings as investors questioned HBM cycle sustainability. This knocked MU from 8/8 to 6/8 Minervini (2 consecutive near-misses). Today's 4-channel flow at $14.62M (81% bull) signals institutions are accumulating in the post-washout dip — classic smart money accumulation ahead of the next leg.
+</div>
+
+<div class="section">
+  <h2>Section 1: Fundamental Analysis</h2>
+
+  <div style="display:flex;gap:16px;margin-bottom:16px;align-items:center;">
+    <div class="score-box">
+      <div class="score">STRONG BUY</div>
+      <div class="label">Fundamentals Score: 4/5</div>
+    </div>
+    <div style="color:#8b949e;font-size:0.85em;">As of April 8, 2026 | Source: dashboard.equity_fundamentals</div>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric">
+      <div class="metric-label">Revenue TTM</div>
+      <div class="metric-value green">$58.1B</div>
+      <div class="metric-note">+131.5% YoY — record</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Revenue 3yr CAGR</div>
+      <div class="metric-value green">23.6%</div>
+      <div class="metric-note">Sustainable multi-cycle growth</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Operating Margin</div>
+      <div class="metric-value green">48.4%</div>
+      <div class="metric-note">EXPANDING — record level</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Net Margin</div>
+      <div class="metric-value green">41.5%</div>
+      <div class="metric-note">Top-tier semiconductor</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">FCF TTM</div>
+      <div class="metric-value green">$10.3B</div>
+      <div class="metric-note">17.7% FCF margin</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Debt/Equity</div>
+      <div class="metric-value green">28.2%</div>
+      <div class="metric-note">Conservative balance sheet</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Current Ratio</div>
+      <div class="metric-value green">2.52x</div>
+      <div class="metric-note">Strong liquidity</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Interest Coverage</div>
+      <div class="metric-value green">80.2x</div>
+      <div class="metric-note">Fortress balance sheet</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">ROE</div>
+      <div class="metric-value green">44.5%</div>
+      <div class="metric-note">High capital efficiency</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">ROIC</div>
+      <div class="metric-value green">32.2%</div>
+      <div class="metric-note">Well above WACC — value creation</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">P/E TTM</div>
+      <div class="metric-value green">19.0x</div>
+      <div class="metric-note">CHEAP for 131% revenue growth</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">PEG Ratio</div>
+      <div class="metric-value green">0.81</div>
+      <div class="metric-note">&lt;1.0 = undervalued vs growth</div>
+    </div>
+  </div>
+
+  <h3 style="color:#c9d1d9;font-size:0.95em;margin:16px 0 10px 0;">Valuation vs. Peers</h3>
+  <table>
+    <thead>
+      <tr><th>Company</th><th>P/E TTM</th><th>Rev Growth</th><th>Op Margin</th><th>FCF TTM</th><th>D/E</th><th>PEG</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>MU</strong> <span class="tag green">Our Pick</span></td>
+        <td class="bull">19x</td>
+        <td class="bull">+131.5%</td>
+        <td class="bull">48.4%</td>
+        <td class="bull">$10.3B</td>
+        <td class="bull">28%</td>
+        <td class="bull">0.81</td>
+      </tr>
+      <tr>
+        <td>SNDK (SanDisk)</td>
+        <td>~25-30x</td>
+        <td>~100%+</td>
+        <td>~40%</td>
+        <td>~$2B</td>
+        <td>~50%</td>
+        <td>~1.2</td>
+      </tr>
+      <tr>
+        <td>NVDA</td>
+        <td>~35x</td>
+        <td>~120%</td>
+        <td>~55%</td>
+        <td>$60B+</td>
+        <td>~25%</td>
+        <td>~1.5</td>
+      </tr>
+      <tr>
+        <td>Samsung Memo (comps)</td>
+        <td>~15x</td>
+        <td>~80%</td>
+        <td>~35%</td>
+        <td>~$15B</td>
+        <td>~20%</td>
+        <td>~1.0</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="color:#8b949e;font-size:0.82em;margin-top:8px;">MU's 19x P/E and 0.81 PEG are exceptional — the stock is priced as if growth has peaked (common post-earnings washout behavior) while the Q3 guide of $33.5B (+200%+ YoY) says otherwise.</p>
+
+  <h3 style="color:#c9d1d9;font-size:0.95em;margin:16px 0 10px 0;">Analyst Consensus</h3>
+  <table>
+    <thead>
+      <tr><th>Consensus</th><th>Strong Buy</th><th>Buy</th><th>Outperform</th><th>Hold</th><th>Sell</th><th>Avg PT</th><th>Upside</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong class="bull">STRONG BUY</strong></td>
+        <td class="bull">~17</td>
+        <td class="bull">11</td>
+        <td class="bull">10</td>
+        <td>5</td>
+        <td>2</td>
+        <td>$452–489</td>
+        <td class="bull">+11–24%</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="color:#8b949e;font-size:0.82em;margin-top:8px;">BofA bullish on HBM: HBM market alone $54.6B in 2026 (+58% YoY). Morgan Stanley: $480 base, risk of 15-20% downside only if AI capex disappoints broadly.</p>
+</div>
+
+<div class="section">
+  <h2>Section 2: Thesis Validation</h2>
+
+  <h3 style="color:#3fb950;font-size:0.9em;margin:0 0 10px 0;">BULL CASE</h3>
+  <ul class="bullet-list bull-list">
+    <li><strong>Record results + Q3 guide of $33.5B = 40% sequential growth ahead.</strong> Q2 delivered $23.86B (+196% YoY) and beat by 41.86%. Q3 guide of ~$33.5B implies ~40% sequential growth. If MU executes, this is a monster earnings machine — P/E of 19x on this trajectory is a gift. HBM (High Bandwidth Memory) market alone is $54.6B in 2026.</li>
+    <li><strong>Pristine balance sheet for a semiconductor cyclical.</strong> D/E of 28%, current ratio 2.52x, interest coverage 80x, and $10.3B TTM FCF — this is not a leverage play, it is a cash flow compounder. ROIC of 32.2% far exceeds WACC, confirming value creation at scale. Zero insider selling/buying (neutral — no panic).</li>
+    <li><strong>4-channel flow accumulation at 30% post-earnings discount = institutional entry signal.</strong> The stock crashed 30% post-earnings on sustainability concerns — a classic "sell the news" reaction to exceptional results. Today's 4-channel, $14.62M, 81% bull flow is the institutional entry signal that the washout is over. When smart money buys all 4 channels after a 30% dip, that is the trade.</li>
+  </ul>
+
+  <h3 style="color:#ff7b72;font-size:0.9em;margin:16px 0 10px 0;">BEAR CASE</h3>
+  <ul class="bullet-list bear-list">
+    <li><strong>Memory is cyclical and consensus growth estimates may already price perfection.</strong> The 30% post-earnings selloff signals the market believes peak margins are in. Memory cycles are notoriously volatile — DRAM/NAND oversupply can arrive fast and margins can compress 20-30 points in 1-2 quarters. The Q3 guide assumes sustained AI capex from hyperscalers; a deceleration in Meta/Google/Microsoft AI spending would hit MU disproportionately.</li>
+    <li><strong>CPI risk tomorrow (Apr 10) could trigger tech multiple compression.</strong> MU at 19x P/E is cheap on growth, but a hot CPI print → rate hike fear → multiple compression. HAWKISH Fed + high inflation could reverse the relief rally and pressure the entire semiconductor complex. MU's Minervini at 7/8 (not yet confirmed) means any macro shock could cause a technical deterioration.</li>
+  </ul>
+
+  <div class="verdict-box">
+    <h3>Verdict: STRONG BUY — Upgrade from WATCH</h3>
+    MU is the highest-quality fundamental name in today's flow — P/E 19x, PEG 0.81, 48% operating margin, $10.3B FCF, 80x interest coverage, and ROIC 32%. The 30% post-earnings selloff created a buying opportunity that the smart money is now confirming with 4-channel, $14.62M, 81% bullish flow. This aligns perfectly with Raghu's conservative philosophy: strong FCF, low debt, expanding margins, cheap valuation. The Minervini 7/8 (near-miss 3rd day) is the only technical caution — wait for 8/8 confirmation or use today's flow as the entry trigger. Start with 25-30% position, scale to 50% on Minervini confirmation.
+  </div>
+</div>
+
+<div class="section">
+  <h2>Section 3: Sector & Macro View</h2>
+
+  <p><strong>Memory Semiconductor Cycle:</strong> The DRAM/NAND cycle is in a strong up-phase driven by AI infrastructure buildout. HBM demand from NVIDIA GPU stacking and hyperscaler AI clusters is structurally different from prior consumer-driven cycles — enterprise customers sign multi-year agreements, reducing inventory volatility. MU is the only U.S.-based HBM producer (vs Samsung, SK Hynix in Korea), giving it geopolitical and supply chain advantages in a tariff/trade war environment.</p>
+
+  <table class="summary-table">
+    <tbody>
+      <tr><td>HBM Market 2026</td><td class="bull">$54.6B (+58% YoY) — BofA estimate</td></tr>
+      <tr><td>AI Data Center Capex</td><td class="bull">Meta: $60-65B planned 2026. MSFT: $80B+. AWS: $100B+.</td></tr>
+      <tr><td>NAND Price Trend</td><td class="bull">+10%+ April 1 price increase industry-wide</td></tr>
+      <tr><td>Fed Rate Risk</td><td class="neutral">Hawkish — but MU's 80x interest coverage is immune to rate pressure</td></tr>
+      <tr><td>Geopolitical</td><td class="bull">Iran ceasefire = supply chain confidence. MU is domestic (Boise, ID + Singapore)</td></tr>
+      <tr><td>MU vs Samsung/Hynix</td><td class="bull">U.S. CHIPS Act beneficiary — domestic production competitive advantage</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Section 4: Catalyst Watch</h2>
+  <table>
+    <thead>
+      <tr><th>Timeframe</th><th>Catalyst</th><th>Date</th><th>Signal</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag green">NOW</span></td>
+        <td>4-Channel Flow Accumulation Signal</td>
+        <td>April 9, 2026</td>
+        <td class="bull">HIGH — First time all 4 channels align post-washout</td>
+      </tr>
+      <tr>
+        <td><span class="tag">TOMORROW</span></td>
+        <td>CPI Data (Apr 10)</td>
+        <td>April 10, 2026</td>
+        <td class="neutral">RISK — Hot print = tech selloff; cool print = green light to add</td>
+      </tr>
+      <tr>
+        <td><span class="tag">0–3M</span></td>
+        <td>Minervini 8/8 Confirmation</td>
+        <td>Next scan (daily)</td>
+        <td class="bull">Scale trigger — 8/8 pass = increase to 50% position</td>
+      </tr>
+      <tr>
+        <td><span class="tag">0–3M</span></td>
+        <td>Q3 FY2026 Earnings</td>
+        <td>~June 2026</td>
+        <td class="bull">HIGH — $33.5B guide means another potential massive beat</td>
+      </tr>
+      <tr>
+        <td><span class="tag">3–12M</span></td>
+        <td>HBM Market Share Gains vs Samsung/Hynix</td>
+        <td>Ongoing</td>
+        <td class="bull">Structural — CHIPS Act + NVIDIA partnership deepens moat</td>
+      </tr>
+      <tr>
+        <td><span class="tag">3–12M</span></td>
+        <td>NVIDIA Next-Gen GPU (Blackwell B200/Vera Rubin)</td>
+        <td>2026–2027</td>
+        <td class="bull">MU is primary HBM supplier for NVIDIA stacks</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Section 5: Investment Summary</h2>
+
+  <ul class="bullet-list" style="margin-bottom:18px;">
+    <li><strong>Exceptional fundamentals:</strong> P/E 19x, PEG 0.81, op margin 48%, FCF $10.3B, D/E 28%, interest coverage 80x — MU passes every conservative screen with flying colors.</li>
+    <li><strong>Record Q2 + massive Q3 guide:</strong> $23.86B (+196% YoY) Q2 beat, Q3 guide $33.5B (+200%+ YoY) — the growth is not slowing, it is accelerating.</li>
+    <li><strong>4-channel flow at 30% post-earnings discount = ideal entry point:</strong> Smart money confirms the thesis at exactly the right time — after the retail "sell the news" wash has run its course.</li>
+    <li><strong>HBM is a structural AI tailwind:</strong> $54.6B market in 2026, growing at 58% YoY, and MU is one of only 3 global HBM producers — this is not cyclical speculation, it is infrastructure necessity.</li>
+    <li><strong>Fits Raghu's conservative philosophy perfectly:</strong> Low debt, strong FCF, cheap valuation, positive flow, expanding margins — this is the rare AI play with fortress fundamentals, not just momentum.</li>
+  </ul>
+
+  <table class="summary-table">
+    <tbody>
+      <tr><td>Recommendation</td><td><strong class="bull">STRONG BUY — Upgrade from WATCH</strong></td></tr>
+      <tr><td>Position Size</td><td>25–30% starter; scale to 50% on Minervini 8/8 confirmation</td></tr>
+      <tr><td>Confidence Level</td><td><strong class="bull">HIGH</strong> — fundamentals + flow + catalyst alignment</td></tr>
+      <tr><td>Expected Timeframe</td><td>3–6 months (Q3 earnings ~June as main catalyst)</td></tr>
+      <tr><td>Risk Rating</td><td><span class="neutral">MEDIUM</span> — memory cyclicality + CPI risk tomorrow; balance sheet is fortress</td></tr>
+      <tr><td>Stop Loss</td><td>~-10% from entry (memory cycle reversal signal or Minervini drop below 6/8)</td></tr>
+      <tr><td>Key Monitor</td><td>Minervini score daily; CPI April 10; Q3 earnings ~June 2026</td></tr>
+      <tr><td>Why Now</td><td>Post-earnings 30% washout + 4-channel institutional accumulation = optimal entry window</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer">
+  Generated: April 9, 2026 &nbsp;|&nbsp; Sources: dashboard.equity_fundamentals (Apr 8), CNBC Micron Q2 2026, MarketBeat analysts, BofA HBM research, TIKR.com, Internal flow_aggregator.py
+</div>
+
+</div>
+</body>
+</html>

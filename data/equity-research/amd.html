@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMD — Advanced Micro Devices Equity Research | April 8, 2026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; line-height: 1.6; }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+  .header { border-bottom: 2px solid #f87171; padding-bottom: 24px; margin-bottom: 32px; }
+  .ticker { font-size: 42px; font-weight: 800; color: #f87171; letter-spacing: -1px; }
+  .company { font-size: 20px; color: #94a3b8; margin-top: 4px; }
+  .meta { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
+  .badge { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+  .badge-reduce { background: #450a0a; color: #f87171; border: 1px solid #f87171; }
+  .badge-medium { background: #1e3a5f; color: #60a5fa; border: 1px solid #60a5fa; }
+  .badge-high-risk { background: #451a03; color: #fb923c; border: 1px solid #fb923c; }
+  .badge-bear { background: #3b0f0f; color: #fca5a5; border: 1px solid #ef4444; }
+  .alert-box { background: #3b0f0f; border: 1px solid #ef4444; border-left: 4px solid #ef4444; padding: 16px 20px; border-radius: 8px; margin-bottom: 28px; }
+  .alert-box .alert-title { font-weight: 700; color: #fca5a5; font-size: 15px; margin-bottom: 6px; }
+  .alert-box p { color: #fecaca; font-size: 14px; }
+  .section { margin-bottom: 36px; }
+  .section-title { font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 8px; }
+  .section-title .num { background: #ef4444; color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .metric-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px 16px; }
+  .metric-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .metric-value { font-size: 22px; font-weight: 700; color: #f1f5f9; }
+  .metric-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+  .metric-up { color: #34d399; }
+  .metric-down { color: #f87171; }
+  .metric-warn { color: #fb923c; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+  th { background: #1e293b; color: #94a3b8; text-align: left; padding: 10px 12px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1e293b; color: #e2e8f0; }
+  tr:hover td { background: #1a2332; }
+  .bull { color: #34d399; font-weight: 600; }
+  .bear { color: #f87171; font-weight: 600; }
+  .neutral { color: #94a3b8; }
+  .argument { background: #1e293b; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .argument .arg-title { font-weight: 700; margin-bottom: 8px; font-size: 14px; }
+  .bull-arg .arg-title { color: #34d399; }
+  .bear-arg .arg-title { color: #f87171; }
+  .argument p { font-size: 13px; color: #94a3b8; line-height: 1.7; }
+  .verdict-box { background: #3b0f0f; border: 1px solid #ef4444; border-radius: 8px; padding: 20px; margin-top: 16px; }
+  .verdict-box .verdict-title { color: #f87171; font-weight: 700; font-size: 16px; margin-bottom: 8px; }
+  .verdict-box p { color: #fecaca; font-size: 14px; line-height: 1.7; }
+  .catalyst-item { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid #1e293b; align-items: flex-start; }
+  .catalyst-item:last-child { border-bottom: none; }
+  .catalyst-date { min-width: 120px; font-size: 12px; font-weight: 600; color: #60a5fa; }
+  .catalyst-text { font-size: 13px; color: #cbd5e1; }
+  .catalyst-text .impact { font-size: 12px; color: #f59e0b; margin-top: 3px; }
+  .catalyst-text .risk { font-size: 12px; color: #f87171; margin-top: 3px; }
+  .summary-box { background: #1e293b; border-radius: 10px; padding: 24px; }
+  .summary-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .summary-stat { flex: 1; min-width: 120px; background: #0f1117; border-radius: 6px; padding: 12px 16px; text-align: center; }
+  .summary-stat .s-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .summary-stat .s-val { font-size: 16px; font-weight: 700; }
+  .s-reduce { color: #f87171; }
+  .s-medium { color: #60a5fa; }
+  .s-high-risk { color: #fb923c; }
+  .s-timeframe { color: #a78bfa; }
+  .thesis-list { list-style: none; padding: 0; }
+  .thesis-list li { padding: 10px 0 10px 28px; position: relative; border-bottom: 1px solid #1e293b; font-size: 14px; color: #cbd5e1; }
+  .thesis-list li:last-child { border-bottom: none; }
+  .thesis-list li::before { content: "▶"; position: absolute; left: 0; color: #ef4444; font-size: 10px; top: 13px; }
+  .flag-red { background: #450a0a; border: 1px solid #ef4444; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #fecaca; margin-top: 8px; }
+  .flag-red strong { color: #f87171; }
+  .flag-yellow { background: #451a03; border: 1px solid #fb923c; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #fed7aa; margin-top: 8px; }
+  .flag-yellow strong { color: #fb923c; }
+  .flag-green { background: #064e3b; border: 1px solid #34d399; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #a7f3d0; margin-top: 8px; }
+  .flag-green strong { color: #34d399; }
+  .flow-highlight { background: #3b0f0f; border: 1px solid #ef4444; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; }
+  .flow-highlight .fh-title { color: #f87171; font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+  .flow-highlight p { color: #fecaca; font-size: 13px; }
+  .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #1e293b; font-size: 12px; color: #475569; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="ticker">AMD</div>
+    <div class="company">Advanced Micro Devices — Semiconductors / AI GPU / Data Center</div>
+    <div class="meta">
+      <span class="badge badge-reduce">&#9660; HOLD / REDUCE</span>
+      <span class="badge badge-medium">Confidence: MEDIUM</span>
+      <span class="badge badge-high-risk">Risk: HIGH</span>
+      <span class="badge badge-bear">3-Channel 82% BEAR $12.86M</span>
+    </div>
+  </div>
+
+  <div class="alert-box">
+    <div class="alert-title">&#9888; TRIPLE WARNING — Bear Flow + Minervini Drop + Valuation Red Flags</div>
+    <p>Today: $12.86M in 3-channel BEARISH flow (82% bearish, $230 OPEX put block). AMD also <strong>dropped off the Minervini 8/8 list</strong> today (was on it yesterday). P/E 87x and PEG 6.39 make this one of the most expensive chips stocks relative to growth. Three concurrent red signals on the same day.</p>
+  </div>
+
+  <div class="flow-highlight">
+    <div class="fh-title">&#9660; TODAY'S OPTIONS FLOW (Apr 8, 2026) — BEARISH BLOCK</div>
+    <p>$12.86M premium | 3 channels | 18% bull / 82% bear | Largest bear block: $230 put at April OPEX (Apr 17). Pre-earnings defensive positioning ahead of May 5 AMD earnings. Smart money betting on downside through OPEX cycle.</p>
+  </div>
+
+  <!-- SECTION 1 -->
+  <div class="section">
+    <div class="section-title"><span class="num">1</span> Fundamental Analysis</div>
+
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">TTM Revenue</div>
+        <div class="metric-value">$34.6B</div>
+        <div class="metric-sub metric-up">+34.3% YoY</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">3yr Revenue CAGR</div>
+        <div class="metric-value metric-warn">+13.6%</div>
+        <div class="metric-sub">Slowing from peak</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Op Margin</div>
+        <div class="metric-value metric-warn">10.7%</div>
+        <div class="metric-sub metric-up">Expanding (from low base)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Net Margin</div>
+        <div class="metric-value">12.5%</div>
+        <div class="metric-sub">vs NVDA ~55%</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">TTM FCF</div>
+        <div class="metric-value metric-up">$6.74B</div>
+        <div class="metric-sub metric-up">FCF conv. 155% &#10003;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Net Cash</div>
+        <div class="metric-value metric-up">+$1.69B</div>
+        <div class="metric-sub">D/E 0.06 — clean</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">ROIC</div>
+        <div class="metric-value metric-warn">5.0%</div>
+        <div class="metric-sub metric-down">Potentially below WACC</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Trailing P/E</div>
+        <div class="metric-value metric-down">87x</div>
+        <div class="metric-sub metric-down">PEG 6.39 &#128308;</div>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Metric</th><th>AMD</th><th>NVDA</th><th>INTC</th><th>QCOM</th><th>MU</th></tr></thead>
+      <tbody>
+        <tr><td>Trailing P/E</td><td class="bear">87x</td><td>35x</td><td>25x</td><td>15x</td><td>22x</td></tr>
+        <tr><td>PEG Ratio</td><td class="bear">6.39</td><td>~1.2x</td><td>N/M</td><td>~1.5x</td><td>~0.8x</td></tr>
+        <tr><td>Revenue Growth YoY</td><td>+34%</td><td class="bull">+78%</td><td>+3%</td><td>+17%</td><td>+38%</td></tr>
+        <tr><td>Op Margin</td><td class="bear">10.7%</td><td class="bull">~60%</td><td>~5%</td><td>~28%</td><td>~35%</td></tr>
+        <tr><td>ROIC</td><td class="bear">5.0%</td><td class="bull">~80%</td><td>~2%</td><td>~22%</td><td>~18%</td></tr>
+        <tr><td>AI GPU Mkt Share</td><td>~7-9%</td><td class="bull">~85-90%</td><td>—</td><td>—</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:13px;color:#94a3b8;margin-top:12px;"><strong style="color:#e2e8f0;">Analyst Consensus (34 analysts):</strong> Buy. Mean PT $264.82 — implying near-zero upside at current price levels (~$265 implied). Wide divergence signals uncertainty.</p>
+    <p style="font-size:13px;color:#94a3b8;margin-top:8px;"><strong style="color:#e2e8f0;">Balance Sheet Positives:</strong> Net cash $1.69B, D/E 0.06, current ratio 2.85, interest coverage 32.6x. Clean. But good balance sheet doesn't justify 87x P/E.</p>
+
+    <div class="flag-red"><strong>&#128308; RED FLAG:</strong> P/E 87.2x — significantly above RFR threshold (44x). Extremely high valuation risk for a company with 10.7% op margins.</div>
+    <div class="flag-red"><strong>&#128308; RED FLAG:</strong> PEG 6.39 — growth is fully priced in; any deceleration triggers multiple compression.</div>
+    <div class="flag-yellow"><strong>&#9888; YELLOW FLAG:</strong> ROIC 5.0% — potentially below WACC (~8-10%). Company is not earning its cost of capital at scale.</div>
+    <div class="flag-green"><strong>&#10003; GREEN:</strong> FCF quality excellent (155% conversion, 19.4% FCF margin). Clean balance sheet (net cash positive).</div>
+  </div>
+
+  <!-- SECTION 2 -->
+  <div class="section">
+    <div class="section-title"><span class="num">2</span> Thesis Validation</div>
+
+    <div class="argument bull-arg">
+      <div class="arg-title">&#9650; BULL 1 — MI450 GPU Launch H2 2026 Could Re-Rate the Stock</div>
+      <p>AMD's MI450 data center GPUs (Instinct series) launch H2 2026 with partnerships at OpenAI, Oracle, and the DoE. A $60B five-year deal with a major hyperscaler deploying custom MI450s starting H2 2026 could be transformational. AI GPU market share targeted at 15-20% by end-2026 (from ~7-9%). If ROCm software stack reaches NVDA parity, the structural bull case re-emerges.</p>
+    </div>
+    <div class="argument bull-arg">
+      <div class="arg-title">&#9650; BULL 2 — Clean Balance Sheet + FCF Growth Provides Optionality</div>
+      <p>Net cash $1.69B, D/E 0.06, FCF $6.74B (155% conversion). AMD has the financial firepower to fund R&D, pursue M&A, or buy back stock if the share price drops significantly. Revenue consensus for FY2026 is $46B (+33%) if MI450 ramps on schedule — that would reduce the P/E dramatically assuming margin expansion follows.</p>
+    </div>
+    <div class="argument bull-arg">
+      <div class="arg-title">&#9650; BULL 3 — EPYC CPU Market Share Gain vs Intel</div>
+      <p>AMD's EPYC server CPUs continue taking market share from Intel in hyperscaler data centers. 6th Gen EPYC "Venice" launching 2026 — strong TCO advantages. This CPU business is higher-margin, less volatile, and provides a stable revenue floor separate from the GPU opportunity.</p>
+    </div>
+    <div class="argument bear-arg">
+      <div class="arg-title">&#9660; BEAR 1 — Valuation Disconnected from Fundamentals at 87x P/E</div>
+      <p>Op margins at 10.7% vs NVDA's ~60% yet AMD trades at 87x trailing P/E. ROIC at 5.0% is potentially below cost of capital — AMD is not yet earning economic profit at scale. PEG of 6.39 means any revenue growth deceleration (MI450 delay, hyperscaler capex cuts, competition) triggers violent multiple compression. Bear case to $160-200 is well-supported if MI450 slips to 2027.</p>
+    </div>
+    <div class="argument bear-arg">
+      <div class="arg-title">&#9660; BEAR 2 — Today's Signals Are Tri-Confirmed Bearish</div>
+      <p>Three simultaneous red signals on Apr 8: (1) $12.86M BEARISH flow, 82% put, $230 strike at OPEX — largest bear block in today's flow. (2) AMD dropped off the Minervini 8/8 list today — loss of technical momentum. (3) China export restrictions risk remains — AMD's gaming/embedded segments are exposed. With May 5 earnings 27 days away and analyst consensus PT near current price, risk/reward is skewed negative near-term.</p>
+    </div>
+
+    <div class="verdict-box">
+      <div class="verdict-title">&#9654; VERDICT: BEARISH NEAR-TERM — HOLD / REDUCE</div>
+      <p>AMD's long-term AI GPU thesis is intact but the stock is massively overvalued at 87x P/E with 10.7% operating margins. Today's triple-confirmed bear signal (flow + Minervini drop + valuation flags) argues for reducing or avoiding positions near-term. The right entry point is significantly lower — wait for either (1) a pullback to ~$180-200 range where PEG normalizes, or (2) confirmation of MI450 ramp at Q1 earnings on May 5. Do not initiate new positions at current levels.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="section">
+    <div class="section-title"><span class="num">3</span> Sector &amp; Macro View</div>
+
+    <table>
+      <thead><tr><th>Factor</th><th>Impact on AMD</th><th>Direction</th></tr></thead>
+      <tbody>
+        <tr><td>Iran Ceasefire Relief Rally</td><td>Semi sector benefits (supply chain Hormuz reopening)</td><td class="bull">Positive</td></tr>
+        <tr><td>FOMC Hawkish (Apr 8)</td><td>High-P/E names hit hardest under rate pressure; AMD at 87x very exposed</td><td class="bear">Strong Headwind</td></tr>
+        <tr><td>CPI Apr 10 (est +3.1%)</td><td>Hot print → rate repricing → multiple compression for 87x P/E names</td><td class="bear">Downside Risk</td></tr>
+        <tr><td>NVDA Dominance (~85-90% GPU share)</td><td>ROCm software moat is real; AMD ROCm parity still 12-18 months away</td><td class="bear">Headwind</td></tr>
+        <tr><td>China Export Restrictions</td><td>Gaming/embedded AMD revenue exposed; datacenter GPU sales limited</td><td class="bear">Ongoing Risk</td></tr>
+        <tr><td>MI450 H2 2026 Launch</td><td>Hyperscaler partnerships (OpenAI, Oracle) if on schedule</td><td class="bull">Positive (conditional)</td></tr>
+        <tr><td>EPYC CPU vs Intel</td><td>Continued market share gains; higher margin, more stable</td><td class="bull">Positive</td></tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:13px;color:#94a3b8;margin-top:12px;"><strong style="color:#e2e8f0;">vs NVDA:</strong> AMD trails badly on software ecosystem (CUDA vs ROCm), margins (10.7% vs 60%), and market share (7-9% vs 85-90%). The gap is structural, not cyclical. AMD needs 2-3 more years to close even partially.</p>
+  </div>
+
+  <!-- SECTION 4 -->
+  <div class="section">
+    <div class="section-title"><span class="num">4</span> Catalyst Watch</div>
+
+    <div class="catalyst-item">
+      <div class="catalyst-date">Apr 17, 2026</div>
+      <div class="catalyst-text">April Monthly OPEX — $230 put block is the key level to watch. Bearish positioning suggests downside into expiry. <div class="risk">Near-term downside risk to $230 level</div></div>
+    </div>
+    <div class="catalyst-item">
+      <div class="catalyst-date">Apr 10, 2026</div>
+      <div class="catalyst-text">CPI report — hot print (+3.1%+ est) would pressure high-P/E semis including AMD. <div class="risk">High-impact macro risk event</div></div>
+    </div>
+    <div class="catalyst-item">
+      <div class="catalyst-date">May 5, 2026</div>
+      <div class="catalyst-text"><strong style="color:#60a5fa;">Q1 2026 Earnings</strong> — Key question: any MI450 pre-order commentary, Data Center GPU growth rate, margin trajectory. Miss or cautious guidance = violent selloff at 87x P/E. <div class="risk">Binary event — upside if MI450 confirmed on track; downside if deferred</div></div>
+    </div>
+    <div class="catalyst-item">
+      <div class="catalyst-date">H2 2026</div>
+      <div class="catalyst-text">MI450 GPU launch + 6th Gen EPYC "Venice" CPU. OpenAI/Oracle/$60B hyperscaler deal deployment begins. <div class="impact">Bull trigger — only if on schedule</div></div>
+    </div>
+    <div class="catalyst-item">
+      <div class="catalyst-date">Ongoing</div>
+      <div class="catalyst-text">ROCm software stack parity with CUDA — critical for AI GPU ecosystem. SemiAnalysis projects parity by end-2026. <div class="impact">Structural bull trigger if confirmed</div></div>
+    </div>
+    <div class="catalyst-item">
+      <div class="catalyst-date">Ongoing Risk</div>
+      <div class="catalyst-text">China export restriction escalation — any tightening on AMD GPU exports to China could hit gaming/embedded segments. <div class="risk">Bear risk — monitor geopolitical calendar</div></div>
+    </div>
+  </div>
+
+  <!-- SECTION 5 -->
+  <div class="section">
+    <div class="section-title"><span class="num">5</span> Investment Summary</div>
+
+    <div class="summary-box">
+      <div class="summary-row">
+        <div class="summary-stat"><div class="s-label">Recommendation</div><div class="s-val s-reduce">HOLD/REDUCE</div></div>
+        <div class="summary-stat"><div class="s-label">Confidence</div><div class="s-val s-medium">MEDIUM</div></div>
+        <div class="summary-stat"><div class="s-label">Risk Rating</div><div class="s-val s-high-risk">HIGH</div></div>
+        <div class="summary-stat"><div class="s-label">Timeframe</div><div class="s-val s-timeframe">Watch May 5</div></div>
+        <div class="summary-stat"><div class="s-label">Analyst PT Upside</div><div class="s-val s-reduce">~0%</div></div>
+      </div>
+
+      <ul class="thesis-list">
+        <li>Triple-confirmed bearish signal on April 8: $12.86M bear flow (82% puts), dropped from Minervini 8/8 list, and RED-flag valuation (P/E 87x, PEG 6.39) — three simultaneous warning signs cannot be dismissed.</li>
+        <li>Analyst consensus price target of ~$264.82 implies near-zero upside at current levels; 34 analysts split with high/low divergence suggesting significant uncertainty about the AI GPU ramp timeline.</li>
+        <li>ROIC at 5.0% is potentially below WACC — AMD is not yet earning economic profit at scale, making the 87x P/E difficult to defend even with strong FCF quality (155% conversion).</li>
+        <li>MI450 H2 2026 launch and ROCm parity are the only catalysts that could re-rate the stock; any delay to 2027 or hyperscaler capex pullback creates a severe downside scenario ($160-200).</li>
+        <li>Better entry point: ~$180-210 range where PEG normalizes to ~3x and downside risk is better compensated; alternatively, wait for Q1 earnings (May 5) MI450 confirmation before re-entering.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer">
+    Generated by Claude Code trading-agent | April 8, 2026 | Data: yfinance, MarketBeat, StockAnalysis, SEC EDGAR, Barchart | Not financial advice
+  </div>
+
+</div>
+</body>
+</html>
